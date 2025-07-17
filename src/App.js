@@ -8,6 +8,7 @@ import ArmControl from './components/ArmControl';
 import ActionButtons from './components/ActionButtons';
 import RobotArmTarget from './components/RobotArmTarget';
 import Teacher from './components/Teacher';
+import CollisionStatus from './components/CollisionStatus';
 import config from "./config";
 import { Quaternion, Euler } from 'three';
 import * as THREE from 'three';
@@ -56,7 +57,7 @@ const StatusText = ({ text, status }) => {
 };
 
 // 状态面板组件
-const StatusPanel = ({ isConnected, errorMessage }) => {
+const StatusPanel = ({ isConnected, errorMessage, hasCollision, collisionPairs }) => {
   return (
     <div style={{
       position: 'fixed',
@@ -90,6 +91,9 @@ const StatusPanel = ({ isConnected, errorMessage }) => {
         />
       </div>
 
+      {/* 碰撞检测状态 */}
+      <CollisionStatus hasCollision={hasCollision} collisionPairs={collisionPairs} />
+
       {/* 机器人系统状态（预留） */}
       <div style={{
         display: 'flex',
@@ -100,18 +104,6 @@ const StatusPanel = ({ isConnected, errorMessage }) => {
       }}>
         <StatusIndicator status="normal" />
         <StatusText text="系统正常" status="normal" />
-      </div>
-
-      {/* 奇点状态（预留） */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        flex: 1,
-        justifyContent: 'center'
-      }}>
-        <StatusIndicator status="none" />
-        <StatusText text="奇点" status="none" />
       </div>
     </div>
   );
@@ -1195,6 +1187,18 @@ const App = () => {
   }, [realTimeRightHandValues, rightHandSyncDone]);
 
   /*
+  碰撞检测状态管理
+  */
+  const [hasCollision, setHasCollision] = useState(false);
+  const [collisionPairs, setCollisionPairs] = useState([]);
+  
+  // 碰撞状态回调函数
+  const handleCollisionStatus = (collisionDetected, pairs) => {
+    setHasCollision(collisionDetected);
+    setCollisionPairs(pairs || []);
+  };
+
+  /*
   ROS连接和话题订阅管理
   */
   const [isConnected, setIsConnected] = useState(false);
@@ -1716,6 +1720,7 @@ const App = () => {
             setCoordinatesTemp={setCoordinatesTemp}
             handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
             handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
+            onCollisionStatusChange={handleCollisionStatus}
           />
         </div>
       )}
@@ -1744,6 +1749,7 @@ const App = () => {
             setCoordinatesTemp={setCoordinatesTemp}
             handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
             handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
+            onCollisionStatusChange={handleCollisionStatus}
           />
 
           {/* 左侧末端控制面板 - 使用重构后的RobotArmTarget组件 */}
@@ -1812,6 +1818,7 @@ const App = () => {
             setCoordinatesTemp={setCoordinatesTemp}
             handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
             handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
+            onCollisionStatusChange={handleCollisionStatus}
           />
 
           {/* 左侧预设动作控制面板 - 动作1-6 */}
@@ -2042,7 +2049,12 @@ const App = () => {
         )}
       </div>
       {/* 新增底部状态面板 */}
-      <StatusPanel isConnected={isConnected} errorMessage={errorMessage} />
+      <StatusPanel 
+        isConnected={isConnected} 
+        errorMessage={errorMessage} 
+        hasCollision={hasCollision} 
+        collisionPairs={collisionPairs} 
+      />
     </div>
   );
 };

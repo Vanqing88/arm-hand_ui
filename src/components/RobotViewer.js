@@ -7,6 +7,7 @@ import RobotArmTarget from './RobotArmTarget';
 import ShowCoordinates from './ShowCoordinates';
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader';
 import config from "../config";
+import CollisionDetector from '../utils/CollisionDetector';
 
 const RobotViewer = ({
   isInteracting,
@@ -27,6 +28,7 @@ const RobotViewer = ({
   setCoordinatesTemp,
   handleLeftArmMoveLSrvCall,
   handleRightArmMoveLSrvCall,
+  onCollisionStatusChange,
 }) => {
   const canvasRef = useRef(null);
   const robotRef = useRef(null);
@@ -46,6 +48,11 @@ const RobotViewer = ({
   const jointLinkMappingRef = useRef(new Map());
   const originalMaterialsRef = useRef(new Map());
   const warningMaterialsRef = useRef(null);
+  const collisionMaterialsRef = useRef(null);
+
+  // 碰撞检测器
+  const collisionDetectorRef = useRef(null);
+  const collidingLinksRef = useRef(new Set());
 
   const currentChoosedHandRef = useRef(null);
 
@@ -102,6 +109,27 @@ const RobotViewer = ({
     };
     
     warningMaterialsRef.current = materials;
+    return materials;
+  }, []);
+
+  // 创建碰撞材质
+  const createCollisionMaterials = useCallback(() => {
+    if (collisionMaterialsRef.current) {
+      return collisionMaterialsRef.current;
+    }
+    
+    const materials = {
+      collision: new THREE.MeshStandardMaterial({
+        color: 0x0080FF,  // 蓝色碰撞
+        roughness: 0.4,
+        metalness: 0.6,
+        emissive: 0x001144,
+        transparent: true,
+        opacity: 0.8,
+      })
+    };
+    
+    collisionMaterialsRef.current = materials;
     return materials;
   }, []);
 
@@ -177,6 +205,88 @@ const RobotViewer = ({
     }
     
     return false;
+  }, []);
+
+  // 初始化碰撞检测
+  const initializeCollisionDetection = useCallback((robot) => {
+    if (!robot) return;
+    
+    console.log('初始化碰撞检测系统...');
+    
+    // 创建碰撞检测器
+    collisionDetectorRef.current = new CollisionDetector();
+    
+    // 保存所有链接的原始材质（用于碰撞检测）
+    saveAllOriginalMaterials(robot);
+    
+    // 设置碰撞回调
+    collisionDetectorRef.current.setCollisionCallback((event) => {
+      if (event.type === 'collision') {
+        console.log(`检测到碰撞: ${event.linkA.name} <-> ${event.linkB.name}`);
+        collidingLinksRef.current.add(event.linkA.name);
+        collidingLinksRef.current.add(event.linkB.name);
+        
+        // 更新碰撞视觉效果
+        updateCollisionVisualColor(event.linkA.name, 'collision');
+        updateCollisionVisualColor(event.linkB.name, 'collision');
+        
+        // 通知父组件碰撞状态变化
+        if (onCollisionStatusChange) {
+          const hasCollision = collisionDetectorRef.current.hasAnyCollision();
+          const collisionPairs = collisionDetectorRef.current.getAllCollisionPairs();
+          onCollisionStatusChange(hasCollision, collisionPairs);
+        }
+      } else if (event.type === 'collision_end') {
+        console.log(`碰撞结束: ${event.linkA.name} <-> ${event.linkB.name}`);
+        
+        // 检查链接是否还有其他碰撞
+        const linkAStillColliding = collisionDetectorRef.current.isLinkColliding(event.linkA.name);
+        const linkBStillColliding = collisionDetectorRef.current.isLinkColliding(event.linkB.name);
+        
+        if (!linkAStillColliding) {
+          collidingLinksRef.current.delete(event.linkA.name);
+          updateCollisionVisualColor(event.linkA.name, 'normal');
+        }
+        if (!linkBStillColliding) {
+          collidingLinksRef.current.delete(event.linkB.name);
+          updateCollisionVisualColor(event.linkB.name, 'normal');
+        }
+        
+        // 通知父组件碰撞状态变化
+        if (onCollisionStatusChange) {
+          const hasCollision = collisionDetectorRef.current.hasAnyCollision();
+          const collisionPairs = collisionDetectorRef.current.getAllCollisionPairs();
+          onCollisionStatusChange(hasCollision, collisionPairs);
+        }
+      }
+    });
+    
+    // 将机器人添加到物理世界
+    collisionDetectorRef.current.addRobotToPhysicsWorld(robot);
+  }, []);
+
+  // 保存所有链接的原始材质
+  const saveAllOriginalMaterials = useCallback((robot) => {
+    if (!robot) return;
+    
+    console.log('保存所有链接的原始材质...');
+    
+    robot.traverse((child) => {
+      if (child.isURDFLink) {
+        child.traverse((meshChild) => {
+          if (meshChild.isMesh && meshChild.material) {
+            if (!originalMaterialsRef.current.has(meshChild.uuid)) {
+              // 深拷贝原始材质
+              const originalMaterial = meshChild.material.clone();
+              originalMaterialsRef.current.set(meshChild.uuid, originalMaterial);
+              console.log(`保存链接 ${child.name} 中网格 ${meshChild.uuid} 的原始材质`);
+            }
+          }
+        });
+      }
+    });
+    
+    console.log(`共保存了 ${originalMaterialsRef.current.size} 个原始材质`);
   }, []);
 
   // 建立关节到链接的映射关系（仅处理机械臂关节，严格排除手掌）
@@ -293,12 +403,21 @@ const RobotViewer = ({
     
     // 更新所有相关链接的材质（再次确认排除手掌）
     relatedLinks.forEach(link => {
+      // 检查链接是否发生碰撞，碰撞状态优先于关节极限状态
+      const isColliding = collidingLinksRef.current.has(link.name);
+      
       link.traverse((child) => {
         if (child.isMesh && child.material) {
           // 最后一道防线：确保不更新手掌网格的材质
           const isHandMesh = isHandRelatedMesh(child, link);
           
           if (!isHandMesh) {
+            if (isColliding) {
+              // 碰撞状态优先，保持蓝色
+              console.log(`链接 ${link.name} 处于碰撞状态，保持蓝色材质`);
+              return;
+            }
+            
             if (status === 'normal') {
               // 恢复原始材质
               const originalMaterial = originalMaterialsRef.current.get(child.uuid);
@@ -322,6 +441,48 @@ const RobotViewer = ({
       });
     });
   }, [createWarningMaterials, isHandRelatedMesh]);
+
+  // 更新碰撞可视化颜色（适用于所有链接，包括手掌）
+  const updateCollisionVisualColor = useCallback((linkName, status) => {
+    console.log(`尝试更新链接 ${linkName} 的碰撞颜色状态为: ${status}`);
+    
+    if (!robotRef.current) return;
+    
+    // 直接查找指定名称的链接
+    let targetLink = null;
+    robotRef.current.traverse((child) => {
+      if (child.isURDFLink && child.name === linkName) {
+        targetLink = child;
+      }
+    });
+    
+    if (!targetLink) {
+      console.log(`未找到名为 ${linkName} 的链接`);
+      return;
+    }
+    
+    // 更新链接的材质
+    targetLink.traverse((child) => {
+      if (child.isMesh && child.material) {
+        if (status === 'normal') {
+          // 恢复原始材质
+          const originalMaterial = originalMaterialsRef.current.get(child.uuid);
+          if (originalMaterial) {
+            child.material = originalMaterial;
+            console.log(`恢复链接 ${linkName} 网格 ${child.uuid} 的原始材质`);
+          }
+        } else if (status === 'collision') {
+          // 应用碰撞材质（蓝色）
+          const materials = createCollisionMaterials();
+          const targetMaterial = materials[status];
+          if (targetMaterial) {
+            child.material = targetMaterial;
+            console.log(`应用碰撞材质到链接 ${linkName} 网格 ${child.uuid}`);
+          }
+        }
+      }
+    });
+  }, [createCollisionMaterials]);
 
   // 新增：判断planned与realTime是否一致
   const shouldShowPlannedValues = useCallback(() => {
@@ -422,11 +583,12 @@ const RobotViewer = ({
 
       scene.add(robot);
       
-      // 延迟建立映射关系，确保模型完全加载
-      setTimeout(() => {
-        buildJointLinkMapping(robot);
-        setSceneReady(true);
-      }, 500);
+          // 延迟建立映射关系，确保模型完全加载
+    setTimeout(() => {
+      buildJointLinkMapping(robot);
+      initializeCollisionDetection(robot);
+      setSceneReady(true);
+    }, 500);
     });
 
     // 保存scene和camera对象到ref中
@@ -442,10 +604,16 @@ const RobotViewer = ({
 
     return () => {
       if (renderer) renderer.dispose();
+      
+      // 清理碰撞检测器
+      if (collisionDetectorRef.current) {
+        collisionDetectorRef.current.dispose();
+        collisionDetectorRef.current = null;
+      }
     };
   }, [buildJointLinkMapping]);
 
-  // 优化更新的频率，包含关节颜色更新逻辑
+  // 优化更新的频率，包含关节颜色更新逻辑和碰撞检测
   const updateArmvalues = useCallback(() => {
     const currentTime = Date.now();
     if (currentTime - lastUpdateRef.current < updateInterval) {
@@ -479,6 +647,15 @@ const RobotViewer = ({
         // 显示realTime值并检查机械臂关节极限状态
         updateJointValuesWithColorCheck(realTimeLeftArmValuesRef.current, '_L');
         updateJointValuesWithColorCheck(realTimeRightArmValuesRef.current, '_R');
+      }
+
+      // 更新碰撞检测
+      if (collisionDetectorRef.current) {
+        // 更新物理世界中的机器人状态
+        collisionDetectorRef.current.updateRobotPhysics(robot);
+        
+        // 步进物理世界
+        collisionDetectorRef.current.stepPhysics();
       }
     }
   }, [sceneReady, shouldShowPlannedValues, checkJointLimitStatus, updateJointVisualColor]);
