@@ -1,0 +1,949 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-1-g15f4949  Build Version: 1.6.7594.29634
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="righthand">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.0011743 -0.0017657 0.058158"
+        rpy="0 0 0" />
+      <mass
+        value="0.42029" />
+      <inertia
+        ixx="0.0002338"
+        ixy="-2.3144E-07"
+        ixz="3.6343E-05"
+        iyy="0.0004292"
+        iyz="1.3161E-05"
+        izz="0.0002322" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/base_link.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/base_link.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="index_Link1">
+    <inertial>
+      <origin
+        xyz="0.018514 0.00061106 4.4636E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.011981" />
+      <inertia
+        ixx="4.9084E-07"
+        ixy="1.433E-08"
+        ixz="2.2179E-11"
+        iyy="1.5764E-06"
+        iyz="9.595E-12"
+        izz="1.2249E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/index_Link1.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/index_Link1.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="index_MCP"
+    type="revolute">
+    <origin
+      xyz="-0.033581 -0.005 0.11001"
+      rpy="0 -1.501 3.1416" />
+    <parent
+      link="base_link" />
+    <child
+      link="index_Link1" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+  </joint>
+  <link
+    name="index_Link2">
+    <inertial>
+      <origin
+        xyz="0.0082824 0.001941 1.3975E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0060074" />
+      <inertia
+        ixx="2.6971E-07"
+        ixy="2.2245E-08"
+        ixz="-1.2945E-11"
+        iyy="5.3814E-07"
+        iyz="8.7958E-12"
+        izz="3.0793E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/index_Link2.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/index_Link2.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="index_PIP"
+    type="revolute">
+    <origin
+      xyz="0.0415 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="index_Link1" />
+    <child
+      link="index_Link2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+    <mimic 
+       joint="index_MCP"
+       multiplier="1.0"
+       offset="0" />
+  </joint>
+  <link
+    name="index_Link3">
+    <inertial>
+      <origin
+        xyz="0.0112969418282597 0.00070376452437006 -4.49269793478813E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.00400863036138307" />
+      <inertia
+        ixx="9.03317000731166E-08"
+        ixy="-8.32523752410259E-10"
+        ixz="-4.17956408194564E-12"
+        iyy="2.17286602190014E-07"
+        iyz="-2.27344935347876E-12"
+        izz="1.57318802918579E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/index_Link3.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/index_Link3.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="index_DIP"
+    type="revolute">
+    <origin
+      xyz="0.0245 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="index_Link2" />
+    <child
+      link="index_Link3" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+    <mimic 
+       joint="index_PIP"
+       multiplier="0.8"
+       offset="0" />
+  </joint>
+  <link
+    name="thumb_Link1">
+    <inertial>
+      <origin
+        xyz="0.023451 -0.0065156 0.0070806"
+        rpy="0 0 0" />
+      <mass
+        value="0.069915" />
+      <inertia
+        ixx="1.7585E-05"
+        ixy="2.2256E-06"
+        ixz="-4.9145E-06"
+        iyy="1.6396E-05"
+        iyz="3.9608E-06"
+        izz="1.1324E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/thumb_Link1.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/thumb_Link1.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="thumb_CMC"
+    type="revolute">
+    <origin
+      xyz="-0.03 -0.005 0.031"
+      rpy="0 0 3.1416" />
+    <parent
+      link="base_link" />
+    <child
+      link="thumb_Link1" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.5"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+  </joint>
+  <link
+    name="thumb_Link2">
+    <inertial>
+      <origin
+        xyz="0.019578 -0.0022668 1.3031E-06"
+        rpy="0 0 0" />
+      <mass
+        value="0.014007" />
+      <inertia
+        ixx="9.4043E-07"
+        ixy="-4.0439E-08"
+        ixz="2.0376E-10"
+        iyy="1.8622E-06"
+        iyz="-4.8396E-11"
+        izz="1.2635E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/thumb_Link2.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/thumb_Link2.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="thumb_MP"
+    type="revolute">
+    <origin
+      xyz="0.037554 -0.019018 0.029117"
+      rpy="-0.83451 -0.96385 -0.83451" />
+    <parent
+      link="thumb_Link1" />
+    <child
+      link="thumb_Link2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-1"
+      upper="1"
+      effort="1"
+      velocity="3" />
+  </joint>
+  <link
+    name="thumb_Link3">
+    <inertial>
+      <origin
+        xyz="0.015427 -0.00030817 -4.6143E-05"
+        rpy="0 0 0" />
+      <mass
+        value="0.0069853" />
+      <inertia
+        ixx="2.4628E-07"
+        ixy="-2.2831E-08"
+        ixz="6.4729E-10"
+        iyy="5.9224E-07"
+        iyz="1.1223E-09"
+        izz="4.4492E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/thumb_Link3.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/thumb_Link3.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="thumb_IP"
+    type="revolute">
+    <origin
+      xyz="0.04 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="thumb_Link2" />
+    <child
+      link="thumb_Link3" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1"
+      effort="1"
+      velocity="3" />
+  </joint>
+  <link
+    name="middle_Link1">
+    <inertial>
+      <origin
+        xyz="0.018514 0.00061105 4.4528E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.011981" />
+      <inertia
+        ixx="4.9084E-07"
+        ixy="1.4329E-08"
+        ixz="2.1815E-11"
+        iyy="1.5764E-06"
+        iyz="9.6161E-12"
+        izz="1.2249E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/middle_Link1.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/middle_Link1.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="middle_MCP"
+    type="revolute">
+    <origin
+      xyz="-0.012 -0.005 0.117"
+      rpy="3.1416 -1.5708 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="middle_Link1" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+  </joint>
+  <link
+    name="middle_Link2">
+    <inertial>
+      <origin
+        xyz="0.013657 0.001941 1.1803E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0060074" />
+      <inertia
+        ixx="2.6971E-07"
+        ixy="2.2245E-08"
+        ixz="-1.3471E-11"
+        iyy="5.3814E-07"
+        iyz="8.5001E-12"
+        izz="3.0793E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/middle_Link2.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/middle_Link2.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="middle_PIP"
+    type="revolute">
+    <origin
+      xyz="0.036125 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="middle_Link1" />
+    <child
+      link="middle_Link2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+    <mimic 
+      joint="middle_MCP"
+      multiplier="1.0"
+      offset="0" />
+  </joint>
+  <link
+    name="middle_Link3">
+    <inertial>
+      <origin
+        xyz="0.011297 0.00070372 -5.4465E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0040087" />
+      <inertia
+        ixx="9.0335E-08"
+        ixy="-8.3332E-10"
+        ixz="-5.552E-12"
+        iyy="2.1729E-07"
+        iyz="-4.7461E-12"
+        izz="1.5732E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/middle_Link3.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/middle_Link3.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="middle_DIP"
+    type="revolute">
+    <origin
+      xyz="0.029875 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="middle_Link2" />
+    <child
+      link="middle_Link3" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+    <mimic 
+      joint="middle_PIP"
+      multiplier="0.8"
+      offset="0" />
+  </joint>
+  <link
+    name="ring_Link1">
+    <inertial>
+      <origin
+        xyz="0.018514 0.00061104 4.4446E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.011981" />
+      <inertia
+        ixx="4.9084E-07"
+        ixy="1.4329E-08"
+        ixz="2.1394E-11"
+        iyy="1.5764E-06"
+        iyz="9.6613E-12"
+        izz="1.2249E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/ring_Link1.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/ring_Link1.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="ring_MCP"
+    type="revolute">
+    <origin
+      xyz="0.0095815 -0.005 0.11001"
+      rpy="3.1416 -1.501 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="ring_Link1" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+  </joint>
+  <link
+    name="ring_Link2">
+    <inertial>
+      <origin
+        xyz="0.0082825 0.0019411 1.0664E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0060074" />
+      <inertia
+        ixx="2.6971E-07"
+        ixy="2.2245E-08"
+        ixz="-1.3354E-11"
+        iyy="5.3814E-07"
+        iyz="8.3737E-12"
+        izz="3.0793E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/ring_Link2.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/ring_Link2.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="ring_PIP"
+    type="revolute">
+    <origin
+      xyz="0.0415 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="ring_Link1" />
+    <child
+      link="ring_Link2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+    <mimic 
+      joint="ring_MCP"
+      multiplier="1.0"
+      offset="0" />
+  </joint>
+  <link
+    name="ring_Link3">
+    <inertial>
+      <origin
+        xyz="0.011297 0.0007036 -8.3367E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0040088" />
+      <inertia
+        ixx="9.0345E-08"
+        ixy="-8.3527E-10"
+        ixz="-8.0239E-12"
+        iyy="2.173E-07"
+        iyz="-1.1263E-11"
+        izz="1.5733E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/ring_Link3.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/ring_Link3.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="ring_DIP"
+    type="revolute">
+    <origin
+      xyz="0.0245 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="ring_Link2" />
+    <child
+      link="ring_Link3" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+    <mimic 
+      joint="ring_PIP"
+      multiplier="0.8"
+      offset="0" />
+  </joint>
+  <link
+    name="little_Link1">
+    <inertial>
+      <origin
+        xyz="0.018514 0.00061104 4.4446E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.011981" />
+      <inertia
+        ixx="4.9084E-07"
+        ixy="1.4329E-08"
+        ixz="2.1394E-11"
+        iyy="1.5764E-06"
+        iyz="9.6613E-12"
+        izz="1.2249E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/little_Link1.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/little_Link1.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="little_MCP"
+    type="revolute">
+    <origin
+      xyz="0.031165 -0.005 0.10306"
+      rpy="3.1416 -1.4312 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="little_Link1" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+  </joint>
+  <link
+    name="little_Link2">
+    <inertial>
+      <origin
+        xyz="0.0082824 0.001941 1.3548E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0060074" />
+      <inertia
+        ixx="2.6971E-07"
+        ixy="2.2245E-08"
+        ixz="-1.257E-11"
+        iyy="5.3814E-07"
+        iyz="8.7578E-12"
+        izz="3.0793E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/little_Link2.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/little_Link2.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="little_PIP"
+    type="revolute">
+    <origin
+      xyz="0.0415 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="little_Link1" />
+    <child
+      link="little_Link2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+    <mimic 
+      joint="little_MCP"
+      multiplier="1.0"
+      offset="0" />
+  </joint>
+  <link
+    name="little_Link3">
+    <inertial>
+      <origin
+        xyz="0.011297 0.00070363 -7.8629E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.0040088" />
+      <inertia
+        ixx="9.0343E-08"
+        ixy="-8.3492E-10"
+        ixz="-8.37E-12"
+        iyy="2.173E-07"
+        iyz="-1.0092E-11"
+        izz="1.5732E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/little_Link3.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://righthand/meshes/little_Link3.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="little_DIP"
+    type="revolute">
+    <origin
+      xyz="0.0245 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="little_Link2" />
+    <child
+      link="little_Link3" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="0"
+      upper="1.5"
+      effort="1"
+      velocity="3" />
+    <mimic 
+      joint="little_PIP"
+      multiplier="0.8"
+      offset="0" />
+  </joint>
+</robot>

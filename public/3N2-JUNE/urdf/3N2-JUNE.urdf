@@ -1,0 +1,1835 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-1-g15f4949  Build Version: 1.6.7594.29634
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="3N2-JUNE">
+  <link
+    name="TORSO">
+    <inertial>
+      <origin
+        xyz="-0.00785 -0.00439 -0.43484"
+        rpy="0 0 0" />
+      <mass
+        value="25.93040" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.00641"
+        ixz="0.032447"
+        iyy="3.65842"
+        iyz="-0.005298"
+        izz="0.76325" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/TORSO.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/TORSO.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="SCAPULA_R">
+    <inertial>
+      <origin
+        xyz="-0.0064651 -0.27777 0.31205"
+        rpy="0 0 0" />
+      <mass
+        value="25.93040" />
+      <inertia
+        ixx="4.30322"
+        ixy="0.01712"
+        ixz="-0.02829"
+        iyy="3.323156"
+        iyz="0.926428"
+        izz="1.09852" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SCAPULA_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SCAPULA_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Shoulder_Y_R"
+    type="revolute">
+    <origin
+      xyz="-0.001387 -0.15868 -0.046603"
+      rpy="2.79252 0 0" />
+    <parent
+      link="TORSO" />
+    <child
+      link="SCAPULA_R" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-3.14"
+      upper="1.22"
+      effort="54.67"
+      velocity="4.58" />
+  </joint>
+  <link
+    name="SHOULDER_R">
+    <inertial>
+      <origin
+        xyz="-0.006465 0.224963 -0.41396"
+        rpy="0 0 0" />
+      <mass
+        value="25.93040" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.00641"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.76325" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SHOULDER_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SHOULDER_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Shoulder_X_R"
+    type="revolute">
+    <origin
+      xyz="0 0.075202 0"
+      rpy="-2.792526 0 0" />
+    <parent
+      link="SCAPULA_R" />
+    <child
+      link="SHOULDER_R" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-2.26"
+      upper="0"
+      effort="54.67"
+      velocity="4.58" />
+  </joint>
+  <link
+    name="UPPERARM_R">
+    <inertial>
+      <origin
+        xyz="-0.006455 0.224963 -0.329462"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.303222"
+        ixy="-0.0064114"
+        ixz="0.0324476"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/UPPERARM_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/UPPERARM_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Shoulder_Z_R"
+    type="revolute">
+    <origin
+      xyz="-1.0000016E-05 0 -0.084499"
+      rpy="0 0 0" />
+    <parent
+      link="SHOULDER_R" />
+    <child
+      link="UPPERARM_R" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.09"
+      upper="2.09"
+      effort="54.67"
+      velocity="4.58" />
+  </joint>
+  <link
+    name="FOREARM_R">
+    <inertial>
+      <origin
+        xyz="-0.006455 0.2249633 -0.183962"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.3032225"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/FOREARM_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/FOREARM_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Elbow_R"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.1455"
+      rpy="0 0 0" />
+    <parent
+      link="UPPERARM_R" />
+    <child
+      link="FOREARM_R" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.57"
+      upper="1.57"
+      effort="33"
+      velocity="7.17" />
+  </joint>
+  <link
+    name="WRIST_REVOLUTE_R">
+    <inertial>
+      <origin
+        xyz="-0.006455 0.22496 -0.115537"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.0064"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/WRIST_REVOLUTE_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/WRIST_REVOLUTE_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Wrist_Z_R"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.06842437"
+      rpy="0 0 0" />
+    <parent
+      link="FOREARM_R" />
+    <child
+      link="WRIST_REVOLUTE_R" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.96"
+      upper="2.96"
+      effort="15"
+      velocity="4.58" />
+  </joint>
+  <link
+    name="WRIST_UPDOWN_R">
+    <inertial>
+      <origin
+        xyz="-0.0064551 0.22496269 0.086042"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.006411"
+        ixz="0.0324476"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/WRIST_UPDOWN_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/WRIST_UPDOWN_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Wrist_Y_R"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.20158"
+      rpy="0 0 0" />
+    <parent
+      link="WRIST_REVOLUTE_R" />
+    <child
+      link="WRIST_UPDOWN_R" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-0.87"
+      upper="0.87"
+      effort="7"
+      velocity="3.62" />
+  </joint>
+  <link
+    name="HAND_R">
+    <inertial>
+      <origin
+        xyz="-0.0064551 0.224962 0.086042"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.303222"
+        ixy="-0.0064114"
+        ixz="0.0324476"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/HAND_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/HAND_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Wrist_X_R"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="WRIST_UPDOWN_R" />
+    <child
+      link="HAND_R" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-0.87"
+      upper="1.57"
+      effort="7"
+      velocity="3.62" />
+  </joint>
+  <link
+    name="SCAPULA_L">
+    <inertial>
+      <origin
+        xyz="-0.0064651 -0.28603 -0.309051"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304036556032" />
+      <inertia
+        ixx="4.3032"
+        ixy="0.005072"
+        ixz="0.03268"
+        iyy="3.31634"
+        iyz="-0.934545"
+        izz="1.10533" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SCAPULA_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SCAPULA_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Shoulder_Y_L"
+    type="revolute">
+    <origin
+      xyz="-0.001387 0.15868798 -0.0466034"
+      rpy="0.3490658 0 0" />
+    <parent
+      link="TORSO" />
+    <child
+      link="SCAPULA_L" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-3.14"
+      upper="1.22"
+      effort="54.67"
+      velocity="4.58" />
+  </joint>
+  <link
+    name="SHOULDER_L">
+    <inertial>
+      <origin
+        xyz="-0.006465 -0.233746 -0.413962"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SHOULDER_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SHOULDER_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Shoulder_X_L"
+    type="revolute">
+    <origin
+      xyz="0 0.07520 0"
+      rpy="-0.3490658 0 0" />
+    <parent
+      link="SCAPULA_L" />
+    <child
+      link="SHOULDER_L" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="0"
+      upper="2.26"
+      effort="54.67"
+      velocity="4.58" />
+  </joint>
+  <link
+    name="UPPERARM_L">
+    <inertial>
+      <origin
+        xyz="-0.0064551 -0.2337468 -0.329462"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304036" />
+      <inertia
+        ixx="4.3032225"
+        ixy="-0.0064114"
+        ixz="0.0324476"
+        iyy="3.6584198"
+        iyz="-0.005298"
+        izz="0.7632584" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/UPPERARM_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/UPPERARM_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Shoulder_Z_L"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.08450"
+      rpy="0 0 0" />
+    <parent
+      link="SHOULDER_L" />
+    <child
+      link="UPPERARM_L" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.09"
+      upper="2.09"
+      effort="54.67"
+      velocity="4.58" />
+  </joint>
+  <link
+    name="FOREARM_L">
+    <inertial>
+      <origin
+        xyz="-0.0064551 -0.23374 -0.183962"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.0064114"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/FOREARM_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/FOREARM_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Elbow_L"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.145500"
+      rpy="0 0 0" />
+    <parent
+      link="UPPERARM_L" />
+    <child
+      link="FOREARM_L" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-1.57"
+      upper="1.57"
+      effort="33"
+      velocity="7.17" />
+  </joint>
+  <link
+    name="WRIST_REVOLUTE_L">
+    <inertial>
+      <origin
+        xyz="-0.00645515 -0.233746 -0.115537"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.303222"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/WRIST_REVOLUTE_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/WRIST_REVOLUTE_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Wrist_Z_L"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.068424"
+      rpy="0 0 0" />
+    <parent
+      link="FOREARM_L" />
+    <child
+      link="WRIST_REVOLUTE_L" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.96"
+      upper="2.96"
+      effort="15"
+      velocity="4.58" />
+  </joint>
+  <link
+    name="WRIST_UPDOWN_L">
+    <inertial>
+      <origin
+        xyz="-0.0064551 -0.233746 0.086042"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.65841"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/WRIST_UPDOWN_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/WRIST_UPDOWN_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Wrist_Y_L"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.20158"
+      rpy="0 0 0" />
+    <parent
+      link="WRIST_REVOLUTE_L" />
+    <child
+      link="WRIST_UPDOWN_L" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-0.87"
+      upper="0.87"
+      effort="7"
+      velocity="3.62" />
+  </joint>
+  <link
+    name="HAND_L">
+    <inertial>
+      <origin
+        xyz="-0.0064551 -0.233746 0.086042"
+        rpy="0 0 0" />
+      <mass
+        value="25.93" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.0064114"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/HAND_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/HAND_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Wrist_X_L"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="WRIST_UPDOWN_L" />
+    <child
+      link="HAND_L" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-1.57"
+      upper="0.87"
+      effort="7"
+      velocity="3.62" />
+  </joint>
+  <link
+    name="SACRUM">
+    <inertial>
+      <origin
+        xyz="-0.00646515 -0.00439176 -0.022706"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SACRUM.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SACRUM.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="A_Waist"
+    type="revolute">
+    <origin
+      xyz="-0.001387 0 -0.412139"
+      rpy="0 0 0" />
+    <parent
+      link="TORSO" />
+    <child
+      link="SACRUM" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.785"
+      upper="0.785"
+      effort="31.2"
+      velocity="7.85" />
+  </joint>
+  <link
+    name="ILIUM_R">
+    <inertial>
+      <origin
+        xyz="-0.00646515 0.0466082 0.14709"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.0064114"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ILIUM_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ILIUM_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Hip_Z_R"
+    type="revolute">
+    <origin
+      xyz="0 -0.0510 -0.16979"
+      rpy="0 0 0" />
+    <parent
+      link="SACRUM" />
+    <child
+      link="ILIUM_R" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-0.209"
+      upper="0.209"
+      effort="72"
+      velocity="9.37" />
+  </joint>
+  <link
+    name="ISCHIUM_R">
+    <inertial>
+      <origin
+        xyz="-0.0064651 0.084108 0.147093"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.303222"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ISCHIUM_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ISCHIUM_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Hip_X_R"
+    type="revolute">
+    <origin
+      xyz="0 -0.037499 0"
+      rpy="0 0 0" />
+    <parent
+      link="ILIUM_R" />
+    <child
+      link="ISCHIUM_R" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="-0.436"
+      upper="0.436"
+      effort="72"
+      velocity="8.37" />
+  </joint>
+  <link
+    name="THIGH_R">
+    <inertial>
+      <origin
+        xyz="-0.00646515 0.12711 0.14709"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/THIGH_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/THIGH_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Hip_Y_R"
+    type="revolute">
+    <origin
+      xyz="0 -0.043004 0"
+      rpy="0 0 0" />
+    <parent
+      link="ISCHIUM_R" />
+    <child
+      link="THIGH_R" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-2.443"
+      upper="0.436"
+      effort="31.2"
+      velocity="7.85" />
+  </joint>
+  <link
+    name="SHANK_R">
+    <inertial>
+      <origin
+        xyz="-0.0064651 0.12711 0.48709"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.00641"
+        ixz="0.032447"
+        iyy="3.65841"
+        iyz="-0.00529"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SHANK_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SHANK_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Knee_R"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.3400"
+      rpy="0 0 0" />
+    <parent
+      link="THIGH_R" />
+    <child
+      link="SHANK_R" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-2.443"
+      upper="2.443"
+      effort="72"
+      velocity="9.37" />
+  </joint>
+  <link
+    name="ASTRAGALUS_R">
+    <inertial>
+      <origin
+        xyz="-0.006465 0.1271122 0.84709"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.3032"
+        ixy="-0.00641"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.0052983"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ASTRAGALUS_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ASTRAGALUS_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Ankle_Y_R"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.359999"
+      rpy="0 0 0" />
+    <parent
+      link="SHANK_R" />
+    <child
+      link="ASTRAGALUS_R" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-0.698"
+      upper="1.309"
+      effort="13"
+      velocity="10.26" />
+  </joint>
+  <link
+    name="FOOT_R">
+    <inertial>
+      <origin
+        xyz="-0.0064651 0.127112 0.84709"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.3032"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/FOOT_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/FOOT_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Ankle_X_R"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="ASTRAGALUS_R" />
+    <child
+      link="FOOT_R" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="-0.331"
+      upper="0.331"
+      effort="18"
+      velocity="10.26" />
+  </joint>
+  <link
+    name="TIPTOE_Z_R">
+    <inertial>
+      <origin
+        xyz="1.38777E-17 0 0"
+        rpy="0 0 0" />
+      <mass
+        value="6.67588E-08" />
+      <inertia
+        ixx="1.66897E-15"
+        ixy="0"
+        ixz="0"
+        iyy="1.66897E-15"
+        iyz="0"
+        izz="1.66897E-15" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/TIPTOE_Z_R.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/TIPTOE_Z_R.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Tiptoe_Z_R"
+    type="fixed">
+    <origin
+      xyz="0 0 -0.084970"
+      rpy="0 0 0" />
+    <parent
+      link="FOOT_R" />
+    <child
+      link="TIPTOE_Z_R" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="ILIUM_L">
+    <inertial>
+      <origin
+        xyz="-0.00646515 -0.05539 0.14709"
+        rpy="0 0 0" />
+      <mass
+        value="25.93040" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ILIUM_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ILIUM_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Hip_Z_L"
+    type="revolute">
+    <origin
+      xyz="0 0.050999 -0.16979"
+      rpy="0 0 0" />
+    <parent
+      link="SACRUM" />
+    <child
+      link="ILIUM_L" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-0.209"
+      upper="0.209"
+      effort="72"
+      velocity="9.37" />
+  </joint>
+  <link
+    name="ISCHIUM_L">
+    <inertial>
+      <origin
+        xyz="-0.0064651 -0.09289 0.14709"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.0064114"
+        ixz="0.032447"
+        iyy="3.65841"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ISCHIUM_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ISCHIUM_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Hip_X_L"
+    type="revolute">
+    <origin
+      xyz="0 0.03750 0"
+      rpy="0 0 0" />
+    <parent
+      link="ILIUM_L" />
+    <child
+      link="ISCHIUM_L" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="-0.436"
+      upper="0.436"
+      effort="72"
+      velocity="8.37" />
+  </joint>
+  <link
+    name="THIGH_L">
+    <inertial>
+      <origin
+        xyz="-0.0064651 -0.135895 0.147093"
+        rpy="0 0 0" />
+      <mass
+        value="25.93040" />
+      <inertia
+        ixx="4.303222"
+        ixy="-0.0064114"
+        ixz="0.0324476"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/THIGH_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/THIGH_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Hip_Y_L"
+    type="revolute">
+    <origin
+      xyz="0 0.043004 0"
+      rpy="0 0 0" />
+    <parent
+      link="ISCHIUM_L" />
+    <child
+      link="THIGH_L" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-2.443"
+      upper="0.436"
+      effort="31.2"
+      velocity="7.85" />
+  </joint>
+  <link
+    name="SHANK_L">
+    <inertial>
+      <origin
+        xyz="-0.0064651 -0.13589 0.48709"
+        rpy="0 0 0" />
+      <mass
+        value="25.930403" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.0064114"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.76325" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SHANK_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/SHANK_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Knee_L"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.34"
+      rpy="0 0 0" />
+    <parent
+      link="THIGH_L" />
+    <child
+      link="SHANK_L" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-2.443"
+      upper="2.443"
+      effort="72"
+      velocity="9.37" />
+  </joint>
+  <link
+    name="ASTRAGALUS_L">
+    <inertial>
+      <origin
+        xyz="-0.006465 -0.13589 0.84709"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.3032"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ASTRAGALUS_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/ASTRAGALUS_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Ankle_Y_L"
+    type="revolute">
+    <origin
+      xyz="0 0 -0.3600"
+      rpy="0 0 0" />
+    <parent
+      link="SHANK_L" />
+    <child
+      link="ASTRAGALUS_L" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-0.698"
+      upper="1.309"
+      effort="13"
+      velocity="10.26" />
+  </joint>
+  <link
+    name="FOOT_L">
+    <inertial>
+      <origin
+        xyz="-0.006465 -0.13589 0.84709"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.006411"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.76325" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/FOOT_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/FOOT_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Ankle_X_L"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="ASTRAGALUS_L" />
+    <child
+      link="FOOT_L" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="-0.331"
+      upper="0.331"
+      effort="18"
+      velocity="10.26" />
+  </joint>
+  <link
+    name="TIPTOE_Z_L">
+    <inertial>
+      <origin
+        xyz="1.38777E-17 0 0"
+        rpy="0 0 0" />
+      <mass
+        value="6.67588E-08" />
+      <inertia
+        ixx="1.66897E-15"
+        ixy="0"
+        ixz="0"
+        iyy="1.66897E-15"
+        iyz="0"
+        izz="1.66897E-15" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/TIPTOE_Z_L.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/TIPTOE_Z_L.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Tiptoe_Z_L"
+    type="fixed">
+    <origin
+      xyz="0 0 -0.08497"
+      rpy="0 0 0" />
+    <parent
+      link="FOOT_L" />
+    <child
+      link="TIPTOE_Z_L" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="NECK">
+    <inertial>
+      <origin
+        xyz="-0.0064651 -0.0043917 -0.523845"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.0064114"
+        ixz="0.032447"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/NECK.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/NECK.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Neck_Z"
+    type="revolute">
+    <origin
+      xyz="-0.0013872 0 0.089"
+      rpy="0 0 0" />
+    <parent
+      link="TORSO" />
+    <child
+      link="NECK" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.785"
+      upper="0.785"
+      effort="7"
+      velocity="3.62" />
+  </joint>
+  <link
+    name="HEAD">
+    <inertial>
+      <origin
+        xyz="-0.0064651 -0.0043917 -0.5658"
+        rpy="0 0 0" />
+      <mass
+        value="25.9304" />
+      <inertia
+        ixx="4.30322"
+        ixy="-0.006411"
+        ixz="0.0324476"
+        iyy="3.658419"
+        iyz="-0.005298"
+        izz="0.763258" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/HEAD.dae" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes_dae/HEAD.dae" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Neck_Y"
+    type="revolute">
+    <origin
+      xyz="0 0 0.041999"
+      rpy="0 0 0" />
+    <parent
+      link="NECK" />
+    <child
+      link="HEAD" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-0.174"
+      upper="0.349"
+      effort="7"
+      velocity="3.62" />
+  </joint>
+</robot>

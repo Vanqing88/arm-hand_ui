@@ -1,0 +1,41 @@
+/* App.css */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.upper-panel {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  background-color: #f0f0f0;
+}
+
+.lower-panel {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.control-panel {
+  flex: 1;
+}
+
+.finger-controls,
+.head-control {
+  margin-bottom: 20px;
+}
+
+.slider {
+  width: 100%;
+}
+
+.robot-viewer {
+  flex: 2;
+  background-color: #e0e0e0;
+}
+
+h3 {
+  font-size: 16px;
+}

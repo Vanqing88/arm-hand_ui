@@ -1,0 +1,1 @@
+controller_joint_names: ['', 'index_MCP', 'index_PIP', 'index_DIP', 'thumb_CMC', 'thumb_MP', 'thumb_IP', 'middle_MCP', 'middle_PIP', 'middle_DIP', 'ring_MCP', 'ring_PIP', 'ring_DIP', 'little_MCP', 'little_PIP', 'little_DIP', ]
