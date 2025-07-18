@@ -11,6 +11,10 @@ class CollisionDetector {
     this.linkToBodyMap = new Map(); // 链接对象到物理体的映射
     this.collisionMaterial = null;
     this.isEnabled = true;
+    this.debugMode = false; // 添加调试模式
+    
+    // 碰撞体缩放因子（减小碰撞体大小以避免误触发）
+    this.collisionScaleFactor = 0.95; // 增大到95%，让碰撞检测更灵敏
     
     this.initPhysicsWorld();
   }
@@ -19,24 +23,29 @@ class CollisionDetector {
     // 创建物理世界
     this.world = new CANNON.World();
     this.world.gravity.set(0, 0, 0); // 不需要重力
-    this.world.broadphase = new CANNON.NaiveBroadphase();
+    
+    // 使用更精确的宽相位算法
+    this.world.broadphase = new CANNON.SAPBroadphase(this.world);
     this.world.solver.iterations = 10;
+    
+    // 设置碰撞容差（降低容差值，让碰撞检测更灵敏）
+    this.world.defaultContactMaterial.contactEquationStiffness = 1e8;
+    this.world.defaultContactMaterial.contactEquationRelaxation = 3;
     
     // 创建碰撞材料
     this.collisionMaterial = new CANNON.Material('collision');
     this.collisionMaterial.friction = 0;
     this.collisionMaterial.restitution = 0;
     
-    // 监听碰撞事件
+    // 监听碰撞事件 - 修复事件处理
     this.world.addEventListener('beginContact', (event) => {
       if (!this.isEnabled) return;
       
-      // 修复：Cannon.js 的事件结构
-      const bodyA = event.bodyA || (event.contact && event.contact.bodyA);
-      const bodyB = event.bodyB || (event.contact && event.contact.bodyB);
+      const bodyA = event.bodyA;
+      const bodyB = event.bodyB;
       
       if (!bodyA || !bodyB) {
-        console.warn('beginContact: bodyA or bodyB is undefined', event);
+        console.warn('beginContact: bodyA or bodyB is undefined');
         return;
       }
       
@@ -44,25 +53,30 @@ class CollisionDetector {
       const linkB = this.bodyToLinkMap.get(bodyB);
       
       if (linkA && linkB) {
-        // 过滤相邻链接的碰撞
-        if (this.isAdjacentLink(linkA.name, linkB.name)) {
-          console.log(`过滤相邻链接碰撞: ${linkA.name} <-> ${linkB.name}`);
+        // 过滤相邻链接和自身的碰撞
+        if (this.shouldIgnoreCollision(linkA.name, linkB.name)) {
           return;
         }
         
         const pairKey = this.createPairKey(linkA, linkB);
-        this.collisionPairs.add(pairKey);
         
-        console.log(`有效碰撞: ${linkA.name} <-> ${linkB.name}`);
-        
-        if (this.onCollisionCallback) {
-          this.onCollisionCallback({
-            type: 'collision',
-            linkA,
-            linkB,
-            bodyA,
-            bodyB
-          });
+        // 只有当该碰撞对之前不存在时才触发回调
+        if (!this.collisionPairs.has(pairKey)) {
+          this.collisionPairs.add(pairKey);
+          
+          if (this.debugMode) {
+            console.log(`检测到碰撞: ${linkA.name} <-> ${linkB.name}`);
+          }
+          
+          if (this.onCollisionCallback) {
+            this.onCollisionCallback({
+              type: 'collision',
+              linkA,
+              linkB,
+              bodyA,
+              bodyB
+            });
+          }
         }
       }
     });
@@ -70,12 +84,11 @@ class CollisionDetector {
     this.world.addEventListener('endContact', (event) => {
       if (!this.isEnabled) return;
       
-      // 修复：Cannon.js 的事件结构
-      const bodyA = event.bodyA || (event.contact && event.contact.bodyA);
-      const bodyB = event.bodyB || (event.contact && event.contact.bodyB);
+      const bodyA = event.bodyA;
+      const bodyB = event.bodyB;
       
       if (!bodyA || !bodyB) {
-        console.warn('endContact: bodyA or bodyB is undefined', event);
+        console.warn('endContact: bodyA or bodyB is undefined');
         return;
       }
       
@@ -83,32 +96,65 @@ class CollisionDetector {
       const linkB = this.bodyToLinkMap.get(bodyB);
       
       if (linkA && linkB) {
-        // 过滤相邻链接的碰撞
-        if (this.isAdjacentLink(linkA.name, linkB.name)) {
-          console.log(`过滤相邻链接碰撞结束: ${linkA.name} <-> ${linkB.name}`);
+        if (this.shouldIgnoreCollision(linkA.name, linkB.name)) {
           return;
         }
         
         const pairKey = this.createPairKey(linkA, linkB);
-        this.collisionPairs.delete(pairKey);
         
-        console.log(`有效碰撞结束: ${linkA.name} <-> ${linkB.name}`);
-        
-        if (this.onCollisionCallback) {
-          this.onCollisionCallback({
-            type: 'collision_end',
-            linkA,
-            linkB,
-            bodyA,
-            bodyB
-          });
+        if (this.collisionPairs.has(pairKey)) {
+          this.collisionPairs.delete(pairKey);
+          
+          if (this.debugMode) {
+            console.log(`碰撞结束: ${linkA.name} <-> ${linkB.name}`);
+          }
+          
+          if (this.onCollisionCallback) {
+            this.onCollisionCallback({
+              type: 'collision_end',
+              linkA,
+              linkB,
+              bodyA,
+              bodyB
+            });
+          }
         }
       }
     });
   }
 
+  // 判断是否应该忽略这对链接之间的碰撞
+  shouldIgnoreCollision(linkNameA, linkNameB) {
+    // 忽略自身碰撞
+    if (linkNameA === linkNameB) {
+      return true;
+    }
+    
+    // 检查是否为相邻链接
+    if (this.isAdjacentLink(linkNameA, linkNameB)) {
+      return true;
+    }
+    
+    // 只忽略直接连接的特殊组件
+    const ignorePairs = [
+      // 手掌内部直接连接的组件
+      ['HAND_L', 'TCP_L'],
+      ['HAND_R', 'TCP_R'],
+      ['WRIST_FLANGE_L', 'TCP_L'],
+      ['WRIST_FLANGE_R', 'TCP_R'],
+    ];
+    
+    for (const [nameA, nameB] of ignorePairs) {
+      if ((linkNameA === nameA && linkNameB === nameB) || 
+          (linkNameA === nameB && linkNameB === nameA)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
   createPairKey(linkA, linkB) {
-    // 创建一致的配对键
     const nameA = linkA.name || linkA.uuid;
     const nameB = linkB.name || linkB.uuid;
     return nameA < nameB ? `${nameA}-${nameB}` : `${nameB}-${nameA}`;
@@ -133,48 +179,61 @@ class CollisionDetector {
   }
 
   setupCollisionFiltering() {
-    // 设置碰撞过滤，避免相邻链接之间的碰撞
+    // 只包含直接通过关节连接的相邻链接
     this.adjacentLinks = new Set([
-      // 左臂相邻链接
+      // 左臂链条
+      'TORSO-SCAPULA_L',
+      'SCAPULA_L-SHOULDER_L',
       'SHOULDER_L-UPPERARM_L',
       'UPPERARM_L-FOREARM_L',
       'FOREARM_L-WRIST_REVOLUTE_L',
       'WRIST_REVOLUTE_L-WRIST_UPDOWN_L',
-      'WRIST_UPDOWN_L-HAND_L',
+      'WRIST_UPDOWN_L-WRIST_FLANGE_L',
+      'WRIST_FLANGE_L-TCP_L',
       
-      // 右臂相邻链接
+      // 右臂链条
+      'TORSO-SCAPULA_R',
+      'SCAPULA_R-SHOULDER_R',
       'SHOULDER_R-UPPERARM_R',
       'UPPERARM_R-FOREARM_R',
       'FOREARM_R-WRIST_REVOLUTE_R',
       'WRIST_REVOLUTE_R-WRIST_UPDOWN_R',
-      'WRIST_UPDOWN_R-HAND_R',
+      'WRIST_UPDOWN_R-WRIST_FLANGE_R',
+      'WRIST_FLANGE_R-TCP_R',
       
-      // 躯干相邻链接
-      'TORSO-SHOULDER_L',
-      'TORSO-SHOULDER_R',
+      // 躯干和头部
+      'SACRUM-TORSO',
       'TORSO-NECK',
       'NECK-HEAD',
       
-      // 反向映射
-      'UPPERARM_L-SHOULDER_L',
-      'FOREARM_L-UPPERARM_L',
-      'WRIST_REVOLUTE_L-FOREARM_L',
-      'WRIST_UPDOWN_L-WRIST_REVOLUTE_L',
-      'HAND_L-WRIST_UPDOWN_L',
+      // 左腿链条
+      'SACRUM-ILIUM_L',
+      'ILIUM_L-ISCHIUM_L',
+      'ISCHIUM_L-THIGH_L',
+      'THIGH_L-SHANK_L',
+      'SHANK_L-ASTRAGALUS_L',
+      'ASTRAGALUS_L-FOOT_L',
       
-      'UPPERARM_R-SHOULDER_R',
-      'FOREARM_R-UPPERARM_R',
-      'WRIST_REVOLUTE_R-FOREARM_R',
-      'WRIST_UPDOWN_R-WRIST_REVOLUTE_R',
-      'HAND_R-WRIST_UPDOWN_R',
-      
-      'SHOULDER_L-TORSO',
-      'SHOULDER_R-TORSO',
-      'NECK-TORSO',
-      'HEAD-NECK',
+      // 右腿链条
+      'SACRUM-ILIUM_R',
+      'ILIUM_R-ISCHIUM_R',
+      'ISCHIUM_R-THIGH_R',
+      'THIGH_R-SHANK_R',
+      'SHANK_R-ASTRAGALUS_R',
+      'ASTRAGALUS_R-FOOT_R',
     ]);
 
-    console.log('碰撞过滤已设置，相邻链接对:', this.adjacentLinks);
+    // 添加反向映射
+    const reverseLinks = new Set();
+    this.adjacentLinks.forEach(pair => {
+      const [a, b] = pair.split('-');
+      reverseLinks.add(`${b}-${a}`);
+    });
+    
+    // 合并正向和反向映射
+    reverseLinks.forEach(pair => this.adjacentLinks.add(pair));
+
+    console.log('碰撞过滤已设置，相邻链接对数量:', this.adjacentLinks.size);
   }
 
   // 检查是否为相邻链接
@@ -198,6 +257,9 @@ class CollisionDetector {
     let hasMesh = false;
     let meshCount = 0;
     
+    // 临时存储所有网格的包围盒
+    const meshBoundingBoxes = [];
+    
     link.traverse((child) => {
       if (child.isMesh && child.visible && child.geometry) {
         try {
@@ -210,6 +272,8 @@ class CollisionDetector {
             // 应用子对象的变换矩阵
             child.updateMatrixWorld(true);
             meshBB.applyMatrix4(child.matrixWorld);
+            
+            meshBoundingBoxes.push(meshBB);
             
             if (hasMesh) {
               boundingBox.union(meshBB);
@@ -234,11 +298,11 @@ class CollisionDetector {
     const size = boundingBox.getSize(new THREE.Vector3());
     const center = boundingBox.getCenter(new THREE.Vector3());
     
-    // 确保尺寸不为0且不会太小
-    const minSize = 0.005; // 增加最小尺寸
-    const halfX = Math.max(size.x / 2, minSize);
-    const halfY = Math.max(size.y / 2, minSize);
-    const halfZ = Math.max(size.z / 2, minSize);
+    // 应用缩放因子以减小碰撞体大小
+    const minSize = 0.005; // 减小最小尺寸，让小部件也能被检测
+    const halfX = Math.max(size.x * this.collisionScaleFactor / 2, minSize);
+    const halfY = Math.max(size.y * this.collisionScaleFactor / 2, minSize);
+    const halfZ = Math.max(size.z * this.collisionScaleFactor / 2, minSize);
     
     // 创建物理体形状（使用盒子形状）
     const shape = new CANNON.Box(new CANNON.Vec3(halfX, halfY, halfZ));
@@ -248,7 +312,7 @@ class CollisionDetector {
       mass: 0, // 静态物体
       shape: shape,
       material: this.collisionMaterial,
-      type: CANNON.Body.KINEMATIC // 运动学物体，不受力影响但可以移动
+      type: CANNON.Body.KINEMATIC // 运动学物体
     });
     
     // 设置初始位置
@@ -262,7 +326,13 @@ class CollisionDetector {
     // 添加到物理世界
     this.world.addBody(body);
     
-    console.log(`为链接 ${link.name} 创建物理体，包含${meshCount}个网格，尺寸: ${size.x.toFixed(3)} x ${size.y.toFixed(3)} x ${size.z.toFixed(3)}`);
+    if (this.debugMode) {
+      console.log(`为链接 ${link.name} 创建物理体:
+        - 原始尺寸: ${size.x.toFixed(3)} x ${size.y.toFixed(3)} x ${size.z.toFixed(3)}
+        - 缩放后尺寸: ${(halfX*2).toFixed(3)} x ${(halfY*2).toFixed(3)} x ${(halfZ*2).toFixed(3)}
+        - 中心位置: (${center.x.toFixed(3)}, ${center.y.toFixed(3)}, ${center.z.toFixed(3)})
+        - 包含网格数: ${meshCount}`);
+    }
   }
 
   updateRobotPhysics(robot) {
@@ -277,7 +347,7 @@ class CollisionDetector {
             // 获取链接的世界变换矩阵
             child.updateMatrixWorld(true);
             
-            // 计算链接的实际边界框中心
+            // 重新计算链接的实际边界框中心
             const boundingBox = new THREE.Box3();
             let hasMesh = false;
             
@@ -298,7 +368,7 @@ class CollisionDetector {
                     }
                   }
                 } catch (error) {
-                  console.warn(`更新链接 ${child.name} 的网格时出错:`, error);
+                  // 静默处理错误
                 }
               }
             });
@@ -308,13 +378,16 @@ class CollisionDetector {
               const center = boundingBox.getCenter(new THREE.Vector3());
               body.position.set(center.x, center.y, center.z);
               
-              // 使用链接的旋转
+              // 从链接的世界矩阵提取旋转
               const position = new THREE.Vector3();
               const quaternion = new THREE.Quaternion();
               const scale = new THREE.Vector3();
               child.matrixWorld.decompose(position, quaternion, scale);
               
               body.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+              
+              // 标记物理体需要更新
+              body.updateAABB();
             }
           } catch (error) {
             console.warn(`更新链接 ${child.name} 的物理体时出错:`, error);
@@ -322,11 +395,19 @@ class CollisionDetector {
         }
       }
     });
+    
+    // 更新物理世界的宽相位
+    this.world.broadphase.dirty = true;
   }
 
   stepPhysics(deltaTime = 1/60) {
     if (!this.isEnabled) return;
-    this.world.step(deltaTime);
+    
+    // 固定时间步长以提高稳定性
+    const fixedTimeStep = 1/60;
+    const maxSubSteps = 3;
+    
+    this.world.step(fixedTimeStep, deltaTime, maxSubSteps);
   }
 
   getCollidingLinks() {
@@ -352,6 +433,10 @@ class CollisionDetector {
   disable() {
     this.isEnabled = false;
     this.collisionPairs.clear();
+  }
+
+  setDebugMode(enabled) {
+    this.debugMode = enabled;
   }
 
   dispose() {
@@ -403,6 +488,77 @@ class CollisionDetector {
   getAllCollisionPairs() {
     return Array.from(this.collisionPairs);
   }
+
+  // 手动测试两个链接之间是否碰撞
+  testCollisionBetween(linkNameA, linkNameB) {
+    const bodyA = this.robotBodies.get(linkNameA);
+    const bodyB = this.robotBodies.get(linkNameB);
+    
+    if (!bodyA || !bodyB) {
+      console.log(`无法找到链接 ${linkNameA} 或 ${linkNameB} 的物理体`);
+      return false;
+    }
+    
+    // 使用 Cannon.js 的碰撞检测
+    const contacts = [];
+    this.world.narrowphase.getContacts(
+      [bodyA], 
+      [bodyB], 
+      this.world, 
+      contacts, 
+      [], // oldContacts
+      [], // frictionEquations
+      []  // frictionEquationPool
+    );
+    
+    return contacts.length > 0;
+  }
+
+  // 获取机器人的所有链接名称
+  getAllLinkNames() {
+    return Array.from(this.robotBodies.keys());
+  }
+
+  // 创建可视化辅助工具（用于调试）
+  createDebugVisualization(scene) {
+    if (!this.debugMode) return;
+    
+    const debugMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ff00,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.3
+    });
+    
+    this.robotBodies.forEach((body, linkName) => {
+      const shape = body.shapes[0];
+      if (shape instanceof CANNON.Box) {
+        const boxGeometry = new THREE.BoxGeometry(
+          shape.halfExtents.x * 2,
+          shape.halfExtents.y * 2,
+          shape.halfExtents.z * 2
+        );
+        const boxMesh = new THREE.Mesh(boxGeometry, debugMaterial);
+        boxMesh.position.copy(body.position);
+        boxMesh.quaternion.copy(body.quaternion);
+        boxMesh.name = `debug_${linkName}`;
+        scene.add(boxMesh);
+      }
+    });
+  }
+
+  // 更新调试可视化
+  updateDebugVisualization(scene) {
+    if (!this.debugMode) return;
+    
+    this.robotBodies.forEach((body, linkName) => {
+      const debugMesh = scene.getObjectByName(`debug_${linkName}`);
+      if (debugMesh) {
+        debugMesh.position.copy(body.position);
+        debugMesh.quaternion.copy(body.quaternion);
+      }
+    });
+  }
 }
 
-export default CollisionDetector; 
+export default CollisionDetector;
