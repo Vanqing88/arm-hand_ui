@@ -842,10 +842,10 @@ const App = () => {
   // Arm MoveL ROS Service Call
   const callArmMoveLService = (serviceName, target_Poses, notWait = true) => {
     setIsMoveLUpdated(true);
-    console.log('callArmMoveLService', serviceName, target_Poses);
+    // console.log('callArmMoveLService', serviceName, target_Poses);
 
     if (!rosRef.current || !isConnected) {
-      console.error("WebSocket connection to ROSBridge is not active.");
+      // console.error("WebSocket connection to ROSBridge is not active.");
       return;
     }
 
@@ -860,19 +860,19 @@ const App = () => {
       not_wait: notWait,
     });
 
-    console.log(`service.name: ${service.name}, service.serviceType: ${service.serviceType}`);
-    console.log(`request.jnt_angle: ${JSON.stringify(request.target_pose)}, request.not_wait: ${request.not_wait}`);
+    // console.log(`service.name: ${service.name}, service.serviceType: ${service.serviceType}`);
+    // console.log(`request.jnt_angle: ${JSON.stringify(request.target_pose)}, request.not_wait: ${request.not_wait}`);
 
     service.callService(request, (response) => {
-      console.log(`Response from ${serviceName}:`, response);
+      // console.log(`Response from ${serviceName}:`, response);
       if (response && response.finish.data) {
-        console.log(`Response from ${serviceName}: Operation completed successfully.`);
+        // console.log(`Response from ${serviceName}: Operation completed successfully.`);
       } else {
-        console.error(`Response from ${serviceName}: Operation failed or incomplete.`);
+        // console.error(`Response from ${serviceName}: Operation failed or incomplete.`);
       }
       setArmRosServiceCalling(false);
     }, (error) => {
-      console.error(`Error 的calling service ${serviceName}:`, error);
+      // console.error(`Error 的calling service ${serviceName}:`, error);
     });
   }
 
@@ -901,7 +901,7 @@ const App = () => {
   }
 
   const handleRightArmMoveLSrvCall = (delta, id) => {
-    console.log('偏移值这老谢 ', delta)
+    // console.log('偏移值这老谢 ', delta)
     const updatedCoordinates = { ...CoordinatesTemp.Right };
 
     if (id === 'x' || id === 'y' || id === 'z') {
@@ -1012,15 +1012,15 @@ const App = () => {
 
   // Arm MoveJ ROS Service Call
   const callArmMoveJService = (serviceName, jointAngles, notWait = false) => {
-    console.log('callArmMoveJService', serviceName, jointAngles);
+    // console.log('callArmMoveJService', serviceName, jointAngles);
 
     if (!rosRef.current || !isConnected) {
-      console.error("WebSocket connection to ROSBridge is not active.");
+      // console.error("WebSocket connection to ROSBridge is not active.");
       return;
     }
 
     if (!serviceName || !jointAngles || !Array.isArray(jointAngles)) {
-      console.error("Invalid service name or joint angles");
+      // console.error("Invalid service name or joint angles");
       return;
     }
     
@@ -1035,19 +1035,19 @@ const App = () => {
       not_wait: notWait,
     });
 
-    console.log(`service.name: ${service.name}, service.serviceType: ${service.serviceType}`);
-    console.log(`request.jnt_angle: ${JSON.stringify(request.jnt_angle)}, request.not_wait: ${request.not_wait}`);
+    // console.log(`service.name: ${service.name}, service.serviceType: ${service.serviceType}`);
+    // console.log(`request.jnt_angle: ${JSON.stringify(request.jnt_angle)}, request.not_wait: ${request.not_wait}`);
 
     service.callService(request, (response) => {
-      console.log(`Response from ${serviceName}:`, response);
+      // console.log(`Response from ${serviceName}:`, response);
       if (response && response.finish.data) {
-        console.log(`Response from ${serviceName}: Operation completed successfully.`);
+        // console.log(`Response from ${serviceName}: Operation completed successfully.`);
       } else {
-        console.error(`Response from ${serviceName}: Operation failed or incomplete.`);
+        // console.error(`Response from ${serviceName}: Operation failed or incomplete.`);
       }
       setArmRosServiceCalling(false);
     }, (error) => {
-      console.error(`Error calling service ${serviceName}:`, error);
+      // console.error(`Error calling service ${serviceName}:`, error);
     });
   };
 
@@ -1063,7 +1063,7 @@ const App = () => {
       plannedLeftArmValues["Wrist_X_L"] * (Math.PI / 180)
     ];
     setArmIsInteracting(false);
-    console.log('调用左臂服务，参数为：', plannedLeftArmValues);
+    // console.log('调用左臂服务，参数为：', plannedLeftArmValues);
     callArmMoveJService("/left_arm_movej_service", jnt_angle);
   };
 
@@ -1079,7 +1079,7 @@ const App = () => {
       plannedRightArmValues["Wrist_X_R"] * (Math.PI / 180)
     ];
     setArmIsInteracting(false);
-    console.log('调用右臂服务，参数为：', plannedRightArmValues);
+    // console.log('调用右臂服务，参数为：', plannedRightArmValues);
     callArmMoveJService("/right_arm_movej_service", jnt_angle);
   };
 
@@ -1138,10 +1138,10 @@ const App = () => {
 
   // Call Hand ROS Service
   const callHandService = (serviceName, id, jointValues) => {
-    console.log('callHandService', serviceName);
+    // console.log('callHandService', serviceName);
 
     if (!rosRef.current || !isConnected) {
-      console.error("WebSocket connection to ROSBridge is not active.");
+      // console.error("WebSocket connection to ROSBridge is not active.");
       return;
     }
 
@@ -1156,16 +1156,16 @@ const App = () => {
       q: jointValues,
     });
     
-    console.log(`service.ros: ${service.ros}, service.name: ${service.name}, service.serviceType: ${service.serviceType}`);
-    console.log(`request.id: ${request.id}, request.q: ${JSON.stringify(request.q)}`);
+    // console.log(`service.ros: ${service.ros}, service.name: ${service.name}, service.serviceType: ${service.serviceType}`);
+    // console.log(`request.id: ${request.id}, request.q: ${JSON.stringify(request.q)}`);
     
     service.callService(request, (response) => {
-      console.log(`Response from ${serviceName}:`, response);
+      // console.log(`Response from ${serviceName}:`, response);
 
       if (response.success) {
-        console.log(`Hand ROS Service Call succeeded: ${response.message}`);
+        // console.log(`Hand ROS Service Call succeeded: ${response.message}`);
       } else {
-        console.error(`Hand ROS Service Call failed: ${response.message}`);
+        // console.error(`Hand ROS Service Call failed: ${response.message}`);
       }
       setHandRosServiceCalling(false);
     });
@@ -1236,13 +1236,13 @@ const App = () => {
     const ros = rosRef.current;
 
     const handleConnection = () => {
-      console.log('Connected to ROSBridge');
+      // console.log('Connected to ROSBridge');
       setIsConnected(true);
       setErrorMessage('');
     };
 
     const handleClose = () => {
-      console.log('Disconnected from ROSBridge');
+      // console.log('Disconnected from ROSBridge');
       setIsConnected(false);
       setErrorMessage('Disconnected from ROSBridge');
 
@@ -1252,7 +1252,7 @@ const App = () => {
     };
 
     const handleError = (error) => {
-      console.error('Error connecting to ROSBridge:', error);
+      // console.error('Error connecting to ROSBridge:', error);
       setErrorMessage('Error connecting to ROSBridge');
     };
 
@@ -1411,7 +1411,7 @@ const App = () => {
     const robotStateTopic = new ROSLIB.Topic({
       ros,
       name: '/robot_state',
-      messageType: 'navi_types/RobotState', // 使用自定义消息类型
+      messageType: 'navi_types/Robot_StateMsg',
     });
 
     robotStateTopic.subscribe((message) => {
@@ -1420,7 +1420,11 @@ const App = () => {
       if (message && typeof message.state !== 'undefined') {
         setRobotState(message.state);
         setRobotStateInfo(message.state_info || '');
+      } else {
+        console.log('Message received but no state field found:', message);
       }
+    }, (error) => {
+      console.error('Error subscribing to robot state topic:', error);
     });
 
     return () => {
@@ -1542,7 +1546,7 @@ const App = () => {
   useEffect(() => {
     if (isConnected === true) {
       callTeachingService('/teach_mode_service', showTeacher);
-      console.log(`Mode ${showTeacher} Completed`);
+      // console.log(`Mode ${showTeacher} Completed`);
     }
   }, [showTeacher]);
 
@@ -1551,7 +1555,7 @@ const App = () => {
       console.error("WebSocket connection to ROSBridge is not active.");
       return;
     }
-    console.log(`Teachinf Mode ${modeIndex} is Completed`);
+    // console.log(`Teachinf Mode ${modeIndex} is Completed`);
 
     const service = new ROSLIB.Service({
       ros: rosRef.current,
@@ -1564,9 +1568,9 @@ const App = () => {
     });
 
     service.callService(request, (response) => {
-      console.log(`Response from ${serviceName}:`, response);
+      // console.log(`Response from ${serviceName}:`, response);
       if (response) {
-        console.log(`Response from ${serviceName}: Operation completed successfully.`);
+        // console.log(`Response from ${serviceName}: Operation completed successfully.`);
       } else {
         console.error(`Response from ${serviceName}: Operation failed or incomplete.`);
       }

@@ -130,17 +130,17 @@ const RobotViewer = ({
     const distanceToMax = Math.abs(currentValue - max) / range;
     const minDistance = Math.min(distanceToMin, distanceToMax);
     
-    console.log(`机械臂关节 ${jointName}: 当前值=${currentValue.toFixed(2)}, 范围=[${min}, ${max}], 最小距离=${minDistance.toFixed(3)}`);
+    // console.log(`机械臂关节 ${jointName}: 当前值=${currentValue.toFixed(2)}, 范围=[${min}, ${max}], 最小距离=${minDistance.toFixed(3)}`);
     
     if (minDistance <= dangerThreshold) {
-      console.log(`机械臂关节 ${jointName} 进入危险状态（红色）！`);
+      // console.log(`机械臂关节 ${jointName} 进入危险状态（红色）！`);
       return 'danger';   // 红色 - 非常接近极限
     } else if (minDistance <= warningThreshold) {
-      console.log(`机械臂关节 ${jointName} 进入警告状态（橙色）！`);
+      // console.log(`机械臂关节 ${jointName} 进入警告状态（橙色）！`);
       return 'warning';  // 橙色 - 接近极限
     }
     
-    console.log(`机械臂关节 ${jointName} 处于正常状态，保持原始颜色`);
+    // console.log(`机械臂关节 ${jointName} 处于正常状态，保持原始颜色`);
     return 'normal';     // 保持原始颜色
   }, []);
 
@@ -183,7 +183,7 @@ const RobotViewer = ({
   const buildJointLinkMapping = useCallback((robot) => {
     if (!robot) return;
     
-    console.log('开始建立机械臂关节-链接映射关系（严格排除手掌）...');
+    // console.log('开始建立机械臂关节-链接映射关系（严格排除手掌）...');
     
     // 清空之前的映射
     jointLinkMappingRef.current.clear();
@@ -198,13 +198,13 @@ const RobotViewer = ({
     // 明确的手掌链接名称
     const handLinkNames = ['HAND_R', 'HAND_L', 'TCP_R', 'TCP_L'];
     
-    console.log('机械臂关节列表:', armJointNames);
+    // console.log('机械臂关节列表:', armJointNames);
     
     // 遍历机器人的所有关节
     Object.entries(robot.joints).forEach(([jointName, joint]) => {
       // 只处理机械臂关节，跳过手掌关节
       if (armJointNames.includes(jointName)) {
-        console.log(`处理机械臂关节: ${jointName}`);
+        // console.log(`处理机械臂关节: ${jointName}`);
         
         // 查找与关节直接相关的链接，严格排除手掌部件
         const relatedLinks = [];
@@ -217,9 +217,9 @@ const RobotViewer = ({
             
             if (!isHandRelated) {
               relatedLinks.push(child);
-              console.log(`机械臂关节 ${jointName} 包含链接: ${child.name}`);
+              // console.log(`机械臂关节 ${jointName} 包含链接: ${child.name}`);
             } else {
-              console.log(`排除手掌相关链接: ${child.name} (关节: ${jointName})`);
+              // console.log(`排除手掌相关链接: ${child.name} (关节: ${jointName})`);
             }
           }
         });
@@ -232,16 +232,16 @@ const RobotViewer = ({
             
             if (!isHandRelated && !relatedLinks.includes(child)) {
               relatedLinks.push(child);
-              console.log(`机械臂关节 ${jointName} 通过父子关系包含链接: ${child.name}`);
+              // console.log(`机械臂关节 ${jointName} 通过父子关系包含链接: ${child.name}`);
             } else if (isHandRelated) {
-              console.log(`通过父子关系排除手掌链接: ${child.name} (关节: ${jointName})`);
+              // console.log(`通过父子关系排除手掌链接: ${child.name} (关节: ${jointName})`);
             }
           }
         });
         
         if (relatedLinks.length > 0) {
           jointLinkMappingRef.current.set(jointName, relatedLinks);
-          console.log(`机械臂关节 ${jointName} 最终映射到 ${relatedLinks.length} 个非手掌链接`);
+          // console.log(`机械臂关节 ${jointName} 最终映射到 ${relatedLinks.length} 个非手掌链接`);
           
           // 保存原始材质（排除手掌部件）
           relatedLinks.forEach(link => {
@@ -254,34 +254,34 @@ const RobotViewer = ({
                   // 深拷贝原始材质以避免引用问题
                   const originalMaterial = child.material.clone();
                   originalMaterialsRef.current.set(child.uuid, originalMaterial);
-                  console.log(`保存了机械臂部件网格 ${child.uuid} 的原始材质 (链接: ${link.name})`);
+                  // console.log(`保存了机械臂部件网格 ${child.uuid} 的原始材质 (链接: ${link.name})`);
                 } else if (isHandMesh) {
-                  console.log(`跳过保存手掌网格材质: ${child.uuid} (链接: ${link.name})`);
+                  // console.log(`跳过保存手掌网格材质: ${child.uuid} (链接: ${link.name})`);
                 }
               }
             });
           });
         } else {
-          console.log(`机械臂关节 ${jointName} 没有找到合适的非手掌链接`);
+          // console.log(`机械臂关节 ${jointName} 没有找到合适的非手掌链接`);
         }
       } else {
         // 跳过手掌关节，保持手掌原始外观
-        console.log(`跳过手掌关节: ${jointName}`);
+        // console.log(`跳过手掌关节: ${jointName}`);
       }
     });
     
-    console.log(`机械臂关节映射关系建立完成，共处理 ${jointLinkMappingRef.current.size} 个机械臂关节`);
+    // console.log(`机械臂关节映射关系建立完成，共处理 ${jointLinkMappingRef.current.size} 个机械臂关节`);
     
     // 输出最终的映射关系供调试
     jointLinkMappingRef.current.forEach((links, jointName) => {
       const linkNames = links.map(link => link.name);
-      console.log(`最终映射 - 关节 ${jointName}: [${linkNames.join(', ')}]`);
+      // console.log(`最终映射 - 关节 ${jointName}: [${linkNames.join(', ')}]`);
     });
   }, [isHandRelatedMesh]);
 
   // 更新关节可视化颜色（仅处理机械臂关节）
   const updateJointVisualColor = useCallback((jointName, status) => {
-    console.log(`尝试更新机械臂关节 ${jointName} 的颜色状态为: ${status}`);
+    // console.log(`尝试更新机械臂关节 ${jointName} 的颜色状态为: ${status}`);
     
     const relatedLinks = jointLinkMappingRef.current.get(jointName);
     if (!relatedLinks || relatedLinks.length === 0) {
@@ -289,7 +289,7 @@ const RobotViewer = ({
       return;
     }
     
-    console.log(`为机械臂关节 ${jointName} 应用 ${status} 状态的材质`);
+    // console.log(`为机械臂关节 ${jointName} 应用 ${status} 状态的材质`);
     
     // 更新所有相关链接的材质（再次确认排除手掌）
     relatedLinks.forEach(link => {
@@ -304,7 +304,7 @@ const RobotViewer = ({
               const originalMaterial = originalMaterialsRef.current.get(child.uuid);
               if (originalMaterial) {
                 child.material = originalMaterial;
-                console.log(`恢复机械臂部件网格 ${child.uuid} 的原始材质`);
+                // console.log(`恢复机械臂部件网格 ${child.uuid} 的原始材质`);
               }
             } else {
               // 应用警告或危险材质
@@ -312,11 +312,11 @@ const RobotViewer = ({
               const targetMaterial = materials[status];
               if (targetMaterial) {
                 child.material = targetMaterial;
-                console.log(`应用 ${status} 材质到机械臂部件网格 ${child.uuid}`);
+                // console.log(`应用 ${status} 材质到机械臂部件网格 ${child.uuid}`);
               }
             }
           } else {
-            console.log(`跳过手掌网格材质更新: ${child.uuid} (链接: ${link.name})`);
+            // console.log(`跳过手掌网格材质更新: ${child.uuid} (链接: ${link.name})`);
           }
         }
       });
@@ -472,7 +472,7 @@ const RobotViewer = ({
 
       if (shouldShowPlannedValues()) {
         // 显示planned值并检查机械臂关节极限状态
-        console.log('更新计划值并检查机械臂关节极限状态');
+        // console.log('更新计划值并检查机械臂关节极限状态');
         updateJointValuesWithColorCheck(plannedLeftArmValuesRef.current, '_L');
         updateJointValuesWithColorCheck(plannedRightArmValuesRef.current, '_R');
       } else {
