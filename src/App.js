@@ -18,12 +18,16 @@ const StatusIndicator = ({ status }) => {
     switch (status) {
       case 'connected':
       case 'normal':
-      case 'none':
         return '#27ae60'; // 绿色
       case 'disconnected':
       case 'error':
       case 'detected':
         return '#e74c3c'; // 红色
+      case 'warning':
+        return '#f39c12'; // 橙色
+      case 'info':
+        return '#3498db'; // 蓝色
+      case 'none':
       default:
         return '#95a5a6'; // 灰色
     }
@@ -56,7 +60,26 @@ const StatusText = ({ text, status }) => {
 };
 
 // 状态面板组件
-const StatusPanel = ({ isConnected, errorMessage }) => {
+const StatusPanel = ({ isConnected, errorMessage, robotState, robotStateInfo }) => {
+  // 根据机器人状态映射到显示文本和状态类型
+  const getRobotStateDisplay = () => {
+    switch (robotState) {
+      case 0: return { text: "未初始化", status: "none" };
+      case 1: return { text: "配置中", status: "warning" };
+      case 2: return { text: "已开启", status: "info" };
+      case 3: return { text: "启动中", status: "warning" };
+      case 4: return { text: "初始化中", status: "warning" };
+      case 5: return { text: "运行中", status: "normal" };
+      case 6: return { text: "暂停", status: "warning" };
+      case 7: return { text: "已停止", status: "error" };
+      case 8: return { text: "已关闭", status: "none" };
+      case 9: return { text: "错误", status: "error" };
+      default: return { text: robotStateInfo || "未知状态", status: "none" };
+    }
+  };
+
+  const robotStateDisplay = getRobotStateDisplay();
+
   return (
     <div style={{
       position: 'fixed',
@@ -64,7 +87,7 @@ const StatusPanel = ({ isConnected, errorMessage }) => {
       left: 0,
       width: '100%',
       height: '60px',
-      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
       backdropFilter: 'blur(10px)',
       boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)',
       display: 'flex',
@@ -90,7 +113,7 @@ const StatusPanel = ({ isConnected, errorMessage }) => {
         />
       </div>
 
-      {/* 机器人系统状态（预留） */}
+      {/* 机器人系统状态 */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -98,8 +121,8 @@ const StatusPanel = ({ isConnected, errorMessage }) => {
         flex: 1,
         justifyContent: 'center'
       }}>
-        <StatusIndicator status="normal" />
-        <StatusText text="系统正常" status="normal" />
+        <StatusIndicator status={robotStateDisplay.status} />
+        <StatusText text={robotStateDisplay.text} status={robotStateDisplay.status} />
       </div>
 
       {/* 奇点状态（预留） */}
@@ -1199,6 +1222,10 @@ const App = () => {
   */
   const [isConnected, setIsConnected] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // 机器人状态管理
+  const [robotState, setRobotState] = useState(0);
+  const [robotStateInfo, setRobotStateInfo] = useState('');
 
   const ROS_HOST = window.location.hostname === 'localhost' ? config.rosbridge.ROS_HOST : window.location.hostname;
   const ROS_PORT = config.rosbridge.ROS_PORT;
@@ -1380,6 +1407,22 @@ const App = () => {
       }));
     });
 
+    // 订阅机器人状态
+    const robotStateTopic = new ROSLIB.Topic({
+      ros,
+      name: '/robot_state',
+      messageType: 'navi_types/RobotState', // 使用自定义消息类型
+    });
+
+    robotStateTopic.subscribe((message) => {
+      console.log('Received robot state:', message);
+      // 根据实际消息格式解析状态
+      if (message && typeof message.state !== 'undefined') {
+        setRobotState(message.state);
+        setRobotStateInfo(message.state_info || '');
+      }
+    });
+
     return () => {
       ros.off('connection', handleConnection);
       ros.off('close', handleClose);
@@ -1389,6 +1432,7 @@ const App = () => {
       handJointStates.unsubscribe();
       left_arm_tcp_pose.unsubscribe();
       right_arm_tcp_pose.unsubscribe();
+      robotStateTopic.unsubscribe();
       ros.close();
     };
   }, [ROS_HOST, ROS_PORT, reconnectionInterval]);
@@ -2042,7 +2086,12 @@ const App = () => {
         )}
       </div>
       {/* 新增底部状态面板 */}
-      <StatusPanel isConnected={isConnected} errorMessage={errorMessage} />
+      <StatusPanel 
+        isConnected={isConnected} 
+        errorMessage={errorMessage} 
+        robotState={robotState}
+        robotStateInfo={robotStateInfo}
+      />
     </div>
   );
 };
