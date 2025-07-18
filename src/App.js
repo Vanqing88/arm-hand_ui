@@ -1503,8 +1503,39 @@ const App = () => {
       setArmRosServiceCalling(false);
       return;
     }
+    
+    // 运行 - 动作7
+    if (actionId === 7) {
+      setArmRosServiceCalling(true);
+      callRobotStateService(5); // RUN = 5
+      setTimeout(() => {
+        setArmRosServiceCalling(false);
+      }, 1000);
+      return;
+    }
+    
+    // 软急停 - 动作8
+    if (actionId === 8) {
+      setArmRosServiceCalling(true);
+      callRobotStateService(9); // STOP = 9
+      setTimeout(() => {
+        setArmRosServiceCalling(false);
+      }, 1000);
+      return;
+    }
+    
+    // 关机 - 动作9
+    if (actionId === 9) {
+      setArmRosServiceCalling(true);
+      callRobotStateService(8); // OFF = 8
+      setTimeout(() => {
+        setArmRosServiceCalling(false);
+      }, 1000);
+      return;
+    }
+    
     // 其他动作
-    if (actionId < 1 || actionId > 5) {
+    if (actionId < 1 || actionId > 12) {
       alert("该预设动作暂未定义");
       setArmRosServiceCalling(false);
     }
@@ -1594,6 +1625,35 @@ const App = () => {
     [-0.9, -1.6, -0.5, -0.5, 0.0, 0.0, 0.0],
     [-0.0, -0.33, 0.0, -0.0, 0.0, -0.0, -0.0]
   ];
+
+  // 机器人状态控制服务调用函数
+  const callRobotStateService = (targetState) => {
+    if (!rosRef.current || !isConnected) {
+      console.error("WebSocket connection to ROSBridge is not active.");
+      return;
+    }
+
+    const service = new ROSLIB.Service({
+      ros: rosRef.current,
+      name: "/set_robot_state",
+      serviceType: "navi_types/Robot_SetState",
+    });
+
+    const request = new ROSLIB.ServiceRequest({
+      target_state: targetState,
+    });
+
+    service.callService(request, (response) => {
+      console.log(`Robot state service response:`, response);
+      if (response && response.success) {
+        console.log(`Robot state changed successfully: ${response.message}`);
+      } else {
+        console.error(`Robot state change failed: ${response?.message || 'Unknown error'}`);
+      }
+    }, (error) => {
+      console.error(`Error calling robot state service:`, error);
+    });
+  };
 
   const callCmdVelTwist = (twistMsg) => {
     if (!rosRef.current || !isConnected) {
