@@ -71,8 +71,8 @@ const StatusPanel = ({ isConnected, errorMessage, robotState, robotStateInfo }) 
       case 4: return { text: "初始化中", status: "warning" };
       case 5: return { text: "运行中", status: "normal" };
       case 6: return { text: "暂停", status: "warning" };
-      case 7: return { text: "已停止", status: "error" };
-      case 8: return { text: "已关闭", status: "none" };
+      case 7: return { text: "软急停", status: "error" };
+      case 8: return { text: "关机", status: "none" };
       case 9: return { text: "错误", status: "error" };
       default: return { text: robotStateInfo || "未知状态", status: "none" };
     }
