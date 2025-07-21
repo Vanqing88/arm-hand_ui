@@ -40,7 +40,7 @@ const RobotViewer = ({
 
   const [sceneReady, setSceneReady] = useState(false);
   const lastUpdateRef = useRef(Date.now());
-  const updateInterval = 100;
+  const updateInterval = 300; // 从200ms增加到300ms，进一步减少闪烁
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
 
@@ -53,6 +53,18 @@ const RobotViewer = ({
   // 碰撞检测器
   const collisionDetectorRef = useRef(null);
   const collidingLinksRef = useRef(new Set());
+  
+  // 添加材质状态缓存，避免重复设置相同材质
+  const materialStateCacheRef = useRef(new Map());
+  const lastJointValuesRef = useRef({ left: {}, right: {} });
+  
+  // 添加防抖机制
+  const materialUpdateTimeoutRef = useRef(null);
+  const pendingMaterialUpdatesRef = useRef(new Set());
+  
+  // 添加碰撞检测更新控制
+  const lastCollisionUpdateRef = useRef(0);
+  const collisionUpdateInterval = 500; // 碰撞检测更新间隔
 
   const currentChoosedHandRef = useRef(null);
 
@@ -135,8 +147,6 @@ const RobotViewer = ({
 
   // 更新碰撞可视化颜色（适用于所有链接，包括手掌）
   const updateCollisionVisualColor = useCallback((linkName, status) => {
-    console.log(`尝试更新链接 ${linkName} 的碰撞颜色状态为: ${status}`);
-    
     if (!robotRef.current) return;
     
     // 直接查找指定名称的链接
@@ -148,7 +158,6 @@ const RobotViewer = ({
     });
     
     if (!targetLink) {
-      console.log(`未找到名为 ${linkName} 的链接`);
       return;
     }
     
@@ -160,7 +169,6 @@ const RobotViewer = ({
           const originalMaterial = originalMaterialsRef.current.get(child.uuid);
           if (originalMaterial) {
             child.material = originalMaterial;
-            console.log(`恢复链接 ${linkName} 网格 ${child.uuid} 的原始材质`);
           }
         } else if (status === 'collision') {
           // 应用碰撞材质（蓝色）
@@ -168,7 +176,6 @@ const RobotViewer = ({
           const targetMaterial = materials[status];
           if (targetMaterial) {
             child.material = targetMaterial;
-            console.log(`应用碰撞材质到链接 ${linkName} 网格 ${child.uuid}`);
           }
         }
       }
@@ -179,8 +186,6 @@ const RobotViewer = ({
   const saveAllOriginalMaterials = useCallback((robot) => {
     if (!robot) return;
     
-    console.log('保存所有链接的原始材质...');
-    
     robot.traverse((child) => {
       if (child.isURDFLink) {
         child.traverse((meshChild) => {
@@ -189,14 +194,13 @@ const RobotViewer = ({
               // 深拷贝原始材质
               const originalMaterial = meshChild.material.clone();
               originalMaterialsRef.current.set(meshChild.uuid, originalMaterial);
-              console.log(`保存链接 ${child.name} 中网格 ${meshChild.uuid} 的原始材质`);
             }
           }
         });
       }
     });
     
-    console.log(`共保存了 ${originalMaterialsRef.current.size} 个原始材质`);
+    console.log(`保存了 ${originalMaterialsRef.current.size} 个原始材质`);
   }, []);
 
   // 检查关节是否接近极限值（仅检查机械臂关节）
@@ -224,17 +228,12 @@ const RobotViewer = ({
     const distanceToMax = Math.abs(currentValue - max) / range;
     const minDistance = Math.min(distanceToMin, distanceToMax);
     
-    console.log(`机械臂关节 ${jointName}: 当前值=${currentValue.toFixed(2)}, 范围=[${min}, ${max}], 最小距离=${minDistance.toFixed(3)}`);
-    
     if (minDistance <= dangerThreshold) {
-      console.log(`机械臂关节 ${jointName} 进入危险状态（红色）！`);
       return 'danger';   // 红色 - 非常接近极限
     } else if (minDistance <= warningThreshold) {
-      console.log(`机械臂关节 ${jointName} 进入警告状态（橙色）！`);
       return 'warning';  // 橙色 - 接近极限
     }
     
-    console.log(`机械臂关节 ${jointName} 处于正常状态，保持原始颜色`);
     return 'normal';     // 保持原始颜色
   }, []);
 
@@ -282,8 +281,8 @@ const RobotViewer = ({
     // 创建碰撞检测器
     collisionDetectorRef.current = new CollisionDetector();
     
-    // 开启调试模式（可选，用于排查问题）
-    const debugMode = false; // 设置为 true 以查看碰撞体
+    // 关闭调试模式，避免调试网格导致的闪烁
+    const debugMode = false; // 设置为 false 以关闭调试网格
     collisionDetectorRef.current.setDebugMode(debugMode);
     
     // 保存所有链接的原始材质（用于碰撞检测）
@@ -296,9 +295,9 @@ const RobotViewer = ({
         collidingLinksRef.current.add(event.linkA.name);
         collidingLinksRef.current.add(event.linkB.name);
         
-        // 更新碰撞视觉效果
-        updateCollisionVisualColor(event.linkA.name, 'collision');
-        updateCollisionVisualColor(event.linkB.name, 'collision');
+        // 暂时禁用碰撞材质更新，避免与关节极限材质冲突
+        // updateCollisionVisualColor(event.linkA.name, 'collision');
+        // updateCollisionVisualColor(event.linkB.name, 'collision');
         
         // 通知父组件碰撞状态变化
         if (onCollisionStatusChange) {
@@ -309,17 +308,14 @@ const RobotViewer = ({
       } else if (event.type === 'collision_end') {
         console.log(`碰撞结束: ${event.linkA.name} <-> ${event.linkB.name}`);
         
-        // 检查链接是否还有其他碰撞
-        const linkAStillColliding = collisionDetectorRef.current.isLinkColliding(event.linkA.name);
-        const linkBStillColliding = collisionDetectorRef.current.isLinkColliding(event.linkB.name);
-        
-        if (!linkAStillColliding) {
+        // 使用事件中提供的碰撞状态信息
+        if (!event.linkAStillColliding) {
           collidingLinksRef.current.delete(event.linkA.name);
-          updateCollisionVisualColor(event.linkA.name, 'normal');
+          // updateCollisionVisualColor(event.linkA.name, 'normal');
         }
-        if (!linkBStillColliding) {
+        if (!event.linkBStillColliding) {
           collidingLinksRef.current.delete(event.linkB.name);
-          updateCollisionVisualColor(event.linkB.name, 'normal');
+          // updateCollisionVisualColor(event.linkB.name, 'normal');
         }
         
         // 通知父组件碰撞状态变化
@@ -344,8 +340,6 @@ const RobotViewer = ({
   const buildJointLinkMapping = useCallback((robot) => {
     if (!robot) return;
     
-    console.log('开始建立机械臂关节-链接映射关系（严格排除手掌）...');
-    
     // 清空之前的映射
     jointLinkMappingRef.current.clear();
     originalMaterialsRef.current.clear();
@@ -359,14 +353,10 @@ const RobotViewer = ({
     // 明确的手掌链接名称
     const handLinkNames = ['HAND_R', 'HAND_L', 'TCP_R', 'TCP_L'];
     
-    console.log('机械臂关节列表:', armJointNames);
-    
     // 遍历机器人的所有关节
     Object.entries(robot.joints).forEach(([jointName, joint]) => {
       // 只处理机械臂关节，跳过手掌关节
       if (armJointNames.includes(jointName)) {
-        console.log(`处理机械臂关节: ${jointName}`);
-        
         // 查找与关节直接相关的链接，严格排除手掌部件
         const relatedLinks = [];
         
@@ -378,9 +368,6 @@ const RobotViewer = ({
             
             if (!isHandRelated) {
               relatedLinks.push(child);
-              console.log(`机械臂关节 ${jointName} 包含链接: ${child.name}`);
-            } else {
-              console.log(`排除手掌相关链接: ${child.name} (关节: ${jointName})`);
             }
           }
         });
@@ -393,16 +380,12 @@ const RobotViewer = ({
             
             if (!isHandRelated && !relatedLinks.includes(child)) {
               relatedLinks.push(child);
-              console.log(`机械臂关节 ${jointName} 通过父子关系包含链接: ${child.name}`);
-            } else if (isHandRelated) {
-              console.log(`通过父子关系排除手掌链接: ${child.name} (关节: ${jointName})`);
             }
           }
         });
         
         if (relatedLinks.length > 0) {
           jointLinkMappingRef.current.set(jointName, relatedLinks);
-          console.log(`机械臂关节 ${jointName} 最终映射到 ${relatedLinks.length} 个非手掌链接`);
           
           // 保存原始材质（排除手掌部件）
           relatedLinks.forEach(link => {
@@ -415,42 +398,24 @@ const RobotViewer = ({
                   // 深拷贝原始材质以避免引用问题
                   const originalMaterial = child.material.clone();
                   originalMaterialsRef.current.set(child.uuid, originalMaterial);
-                  console.log(`保存了机械臂部件网格 ${child.uuid} 的原始材质 (链接: ${link.name})`);
-                } else if (isHandMesh) {
-                  console.log(`跳过保存手掌网格材质: ${child.uuid} (链接: ${link.name})`);
                 }
               }
             });
           });
-        } else {
-          console.log(`机械臂关节 ${jointName} 没有找到合适的非手掌链接`);
         }
-      } else {
-        // 跳过手掌关节，保持手掌原始外观
-        console.log(`跳过手掌关节: ${jointName}`);
       }
     });
     
-    console.log(`机械臂关节映射关系建立完成，共处理 ${jointLinkMappingRef.current.size} 个机械臂关节`);
-    
-    // 输出最终的映射关系供调试
-    jointLinkMappingRef.current.forEach((links, jointName) => {
-      const linkNames = links.map(link => link.name);
-      console.log(`最终映射 - 关节 ${jointName}: [${linkNames.join(', ')}]`);
-    });
+    console.log(`关节映射完成，共处理 ${jointLinkMappingRef.current.size} 个机械臂关节`);
   }, [isHandRelatedMesh]);
 
   // 更新关节可视化颜色（仅处理机械臂关节）
   const updateJointVisualColor = useCallback((jointName, status) => {
-    console.log(`尝试更新机械臂关节 ${jointName} 的颜色状态为: ${status}`);
-    
     const relatedLinks = jointLinkMappingRef.current.get(jointName);
     if (!relatedLinks || relatedLinks.length === 0) {
       // 这里不输出错误信息，因为手掌关节本来就不在映射中
       return;
     }
-    
-    console.log(`为机械臂关节 ${jointName} 应用 ${status} 状态的材质`);
     
     // 更新所有相关链接的材质（再次确认排除手掌）
     relatedLinks.forEach(link => {
@@ -465,7 +430,6 @@ const RobotViewer = ({
           if (!isHandMesh) {
             if (isColliding) {
               // 碰撞状态优先，保持蓝色
-              console.log(`链接 ${link.name} 处于碰撞状态，保持蓝色材质`);
               return;
             }
             
@@ -474,7 +438,6 @@ const RobotViewer = ({
               const originalMaterial = originalMaterialsRef.current.get(child.uuid);
               if (originalMaterial) {
                 child.material = originalMaterial;
-                console.log(`恢复机械臂部件网格 ${child.uuid} 的原始材质`);
               }
             } else {
               // 应用警告或危险材质
@@ -482,11 +445,8 @@ const RobotViewer = ({
               const targetMaterial = materials[status];
               if (targetMaterial) {
                 child.material = targetMaterial;
-                console.log(`应用 ${status} 材质到机械臂部件网格 ${child.uuid}`);
               }
             }
-          } else {
-            console.log(`跳过手掌网格材质更新: ${child.uuid} (链接: ${link.name})`);
           }
         }
       });
@@ -503,6 +463,49 @@ const RobotViewer = ({
     );
     return !(eqL && eqR);
   }, []);
+
+  // 防抖的材质更新函数
+  const debouncedUpdateJointVisualColor = useCallback((jointName, status) => {
+    // 暂时完全禁用材质更新，测试是否是材质更新导致的闪烁
+    return;
+    
+    const cacheKey = `${jointName}_limit`;
+    const currentState = materialStateCacheRef.current.get(cacheKey);
+    
+    // 如果状态没有改变，直接返回
+    if (currentState === status) {
+      return;
+    }
+    
+    // 添加到待更新列表
+    pendingMaterialUpdatesRef.current.add(jointName);
+    
+    // 清除之前的定时器
+    if (materialUpdateTimeoutRef.current) {
+      clearTimeout(materialUpdateTimeoutRef.current);
+    }
+    
+    // 设置新的定时器，延迟更新材质
+    materialUpdateTimeoutRef.current = setTimeout(() => {
+      pendingMaterialUpdatesRef.current.forEach(joint => {
+        const cacheKey = `${joint}_limit`;
+        const currentState = materialStateCacheRef.current.get(cacheKey);
+        const newStatus = checkJointLimitStatus(joint, 
+          shouldShowPlannedValues() 
+            ? (plannedLeftArmValuesRef.current[joint] || plannedRightArmValuesRef.current[joint])
+            : (realTimeLeftArmValuesRef.current[joint] || realTimeRightArmValuesRef.current[joint])
+        );
+        
+        if (currentState !== newStatus) {
+          updateJointVisualColor(joint, newStatus);
+          materialStateCacheRef.current.set(cacheKey, newStatus);
+        }
+      });
+      
+      pendingMaterialUpdatesRef.current.clear();
+      materialUpdateTimeoutRef.current = null;
+    }, 100); // 100ms防抖延迟
+  }, [checkJointLimitStatus, shouldShowPlannedValues, updateJointVisualColor]);
 
   useEffect(() => {
     const scene = new THREE.Scene();
@@ -622,6 +625,19 @@ const RobotViewer = ({
         collisionDetectorRef.current.dispose();
         collisionDetectorRef.current = null;
       }
+      
+      // 清理材质状态缓存
+      materialStateCacheRef.current.clear();
+      originalMaterialsRef.current.clear();
+      warningMaterialsRef.current = null;
+      collisionMaterialsRef.current = null;
+      
+      // 清理防抖定时器
+      if (materialUpdateTimeoutRef.current) {
+        clearTimeout(materialUpdateTimeoutRef.current);
+        materialUpdateTimeoutRef.current = null;
+      }
+      pendingMaterialUpdatesRef.current.clear();
     };
   }, [buildJointLinkMapping, initializeCollisionDetection]);
 
@@ -633,55 +649,133 @@ const RobotViewer = ({
     }
     lastUpdateRef.current = currentTime;
 
-    if (sceneReady && robotRef.current && jointLinkMappingRef.current.size > 0) {
+    if (sceneReady && robotRef.current) {
       const robot = robotRef.current;
 
-      // 机器人模型关节更新（仅对机械臂关节进行颜色状态检查，手掌保持原始外观）
-      const updateJointValuesWithColorCheck = (values, suffix) => {
+      // 检查关节值是否真的发生了变化
+      const currentLeftValues = realTimeLeftArmValuesRef.current;
+      const currentRightValues = realTimeRightArmValuesRef.current;
+      const plannedLeftValues = plannedLeftArmValuesRef.current;
+      const plannedRightValues = plannedRightArmValuesRef.current;
+      
+      const lastLeftValues = lastJointValuesRef.current.left;
+      const lastRightValues = lastJointValuesRef.current.right;
+      
+      // 确定要显示的值
+      const displayLeftValues = shouldShowPlannedValues() ? plannedLeftValues : currentLeftValues;
+      const displayRightValues = shouldShowPlannedValues() ? plannedRightValues : currentRightValues;
+      
+      // 检查是否有显著变化（添加阈值检测）
+      const threshold = 0.1; // 0.1度的阈值
+      const hasSignificantChange = (newValues, oldValues) => {
+        return Object.keys(newValues).some(key => {
+          const newVal = newValues[key];
+          const oldVal = oldValues[key];
+          return typeof newVal === 'number' && typeof oldVal === 'number' && 
+                 Math.abs(newVal - oldVal) > threshold;
+        });
+      };
+      
+      const leftChanged = hasSignificantChange(displayLeftValues, lastLeftValues);
+      const rightChanged = hasSignificantChange(displayRightValues, lastRightValues);
+      
+      // 机器人模型关节更新
+      const updateJointValues = (values, suffix) => {
         Object.entries(robot.joints).forEach(([key, joint]) => {
           if (key.endsWith(suffix) && typeof values[key] === 'number' && !isNaN(values[key])) {
             const angle = values[key] * (Math.PI / 180);
             joint.setJointValue(angle);
-            
-            // 只对机械臂关节检查极限状态并更新颜色，手掌关节保持原始颜色
-            const limitStatus = checkJointLimitStatus(key, values[key]);
-            updateJointVisualColor(key, limitStatus);
           }
         });
       };
 
-      if (shouldShowPlannedValues()) {
-        // 显示planned值并检查机械臂关节极限状态
-        console.log('更新计划值并检查机械臂关节极限状态');
-        updateJointValuesWithColorCheck(plannedLeftArmValuesRef.current, '_L');
-        updateJointValuesWithColorCheck(plannedRightArmValuesRef.current, '_R');
-      } else {
-        // 显示realTime值并检查机械臂关节极限状态
-        updateJointValuesWithColorCheck(realTimeLeftArmValuesRef.current, '_L');
-        updateJointValuesWithColorCheck(realTimeRightArmValuesRef.current, '_R');
+      // 只在有显著变化时更新
+      if (leftChanged) {
+        updateJointValues(displayLeftValues, '_L');
+        lastJointValuesRef.current.left = { ...displayLeftValues };
       }
-
-      // 更新碰撞检测
-      if (collisionDetectorRef.current) {
-        // 更新物理世界中的机器人状态
-        collisionDetectorRef.current.updateRobotPhysics(robot);
-        
-        // 步进物理世界
-        collisionDetectorRef.current.stepPhysics();
-        
-        // 更新调试可视化（如果开启）
-        if (sceneRef.current) {
-          collisionDetectorRef.current.updateDebugVisualization(sceneRef.current);
-        }
+      if (rightChanged) {
+        updateJointValues(displayRightValues, '_R');
+        lastJointValuesRef.current.right = { ...displayRightValues };
       }
     }
-  }, [sceneReady, shouldShowPlannedValues, checkJointLimitStatus, updateJointVisualColor]);
+  }, [sceneReady, shouldShowPlannedValues]);
 
-  // 使用 setInterval 控制更新频率
+  // 单独的关节极限检查函数，降低检查频率
+  const checkJointLimits = useCallback(() => {
+    if (!sceneReady || !robotRef.current || !jointLinkMappingRef.current.size) return;
+
+    const robot = robotRef.current;
+
+    // 检查关节极限并更新颜色
+    const checkJointValuesWithColorUpdate = (values, suffix) => {
+      Object.entries(values).forEach(([jointName, value]) => {
+        if (typeof value === 'number' && !isNaN(value)) {
+          // 检查关节值是否有显著变化
+          const lastValue = lastJointValuesRef.current[suffix === '_L' ? 'left' : 'right'][jointName];
+          const threshold = 0.5; // 0.5度的阈值
+          
+          if (typeof lastValue === 'number' && Math.abs(value - lastValue) < threshold) {
+            return; // 跳过微小变化
+          }
+          
+          const limitStatus = checkJointLimitStatus(jointName, value);
+          
+          // 使用防抖的材质更新函数
+          debouncedUpdateJointVisualColor(jointName, limitStatus);
+        }
+      });
+    };
+
+    if (shouldShowPlannedValues()) {
+      checkJointValuesWithColorUpdate(plannedLeftArmValuesRef.current, '_L');
+      checkJointValuesWithColorUpdate(plannedRightArmValuesRef.current, '_R');
+    } else {
+      checkJointValuesWithColorUpdate(realTimeLeftArmValuesRef.current, '_L');
+      checkJointValuesWithColorUpdate(realTimeRightArmValuesRef.current, '_R');
+    }
+  }, [sceneReady, shouldShowPlannedValues, checkJointLimitStatus, debouncedUpdateJointVisualColor]);
+
+  // 使用 requestAnimationFrame 控制更新频率
   useEffect(() => {
-    const interval = setInterval(updateArmvalues, updateInterval);
-    return () => clearInterval(interval);
-  }, [updateArmvalues]);
+    let animationFrameId;
+    let lastUpdateTime = 0;
+    let lastLimitCheckTime = 0;
+    let lastCollisionUpdateTime = 0;
+    
+    const updateLoop = (currentTime) => {
+      // 主更新循环
+      if (currentTime - lastUpdateTime >= updateInterval) {
+        updateArmvalues();
+        lastUpdateTime = currentTime;
+      }
+      
+      // 关节极限检查
+      if (currentTime - lastLimitCheckTime >= 2000) {
+        checkJointLimits();
+        lastLimitCheckTime = currentTime;
+      }
+      
+      // 碰撞检测更新
+      if (currentTime - lastCollisionUpdateTime >= collisionUpdateInterval) {
+        if (collisionDetectorRef.current && sceneReady && robotRef.current) {
+          collisionDetectorRef.current.updateRobotPhysics(robotRef.current);
+          collisionDetectorRef.current.stepPhysics();
+        }
+        lastCollisionUpdateTime = currentTime;
+      }
+      
+      animationFrameId = requestAnimationFrame(updateLoop);
+    };
+    
+    animationFrameId = requestAnimationFrame(updateLoop);
+    
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [updateArmvalues, checkJointLimits, sceneReady]);
 
   // 兼容触摸和鼠标事件的辅助函数
   function getClientXY(event) {
