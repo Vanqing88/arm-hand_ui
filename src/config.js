@@ -29,6 +29,21 @@ const config = {
           ],
     },
 
+    // 末端控制步长设置 - RobotArmTarget
+    handTargetStepConfig: {
+        position: {
+            default: 0.003,    // 位置坐标默认步长
+            min: 0.001,        // 最小步长
+            max: 0.01,         // 最大步长
+            step: 0.001        // 步长调整精度
+        },
+        orientation: {
+            default: 15,       // 姿态角度默认步长（度）
+            min: 1,            // 最小步长（度）
+            max: 45,           // 最大步长（度）
+            step: 1            // 步长调整精度（度）
+        }
+    },
 
 
     // 双臂关节限位设置 - ArmControl

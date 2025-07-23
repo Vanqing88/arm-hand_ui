@@ -13,7 +13,7 @@ const RobotArmTargetSlider = ({
   min,         // 最小值
   max,         // 最大值
   id,         // 滑块 id属性 用于作为坐标更改的 key值
-  step , // 步长
+  step,        // 步长（保留向后兼容）
   currentChoosedHandRef, //目前好像没用
   HandRef,
   CoordinatesTemp,
@@ -22,17 +22,23 @@ const RobotArmTargetSlider = ({
   value: initialValue = 0,
   MoveLSrvCall,
   rosServiceCalling,
+  positionStep,    // 位置步长参数
+  orientationStep, // 姿态步长参数
 }) => {
   // 初始化 value 的默认值
   let initialCalculatedValue = initialValue;
 
+  // 根据id类型确定使用的步长值
+  let currentStep;
   if (id === 'x' || id === 'y' || id === 'z') { //xyz坐标
     initialCalculatedValue = Number(CoordinatesTemp[index_LorR][id].toFixed(3));
-    step = 0.003; 
+    currentStep = positionStep || 0.003; // 使用传入的位置步长，如果没有则使用默认值
   }
   else if (id === 'xR' || id === 'yR' || id === 'zR') {// 将PI弧度转换为180角度
     initialCalculatedValue = Number(THREE.MathUtils.radToDeg(CoordinatesTemp[index_LorR][id]).toFixed(1));
-    step = 15;
+    currentStep = orientationStep || 15; // 使用传入的姿态步长，如果没有则使用默认值
+  } else {
+    currentStep = step || 0.003; // 默认步长
   }
 
   // 使用 useState 来管理基础值和累计变化值
@@ -51,7 +57,18 @@ const RobotArmTargetSlider = ({
   const longPressTimerRef = useRef(null);
   const intervalRef = useRef(null);
   const pressStartTimeRef = useRef(0);
-  const currentStepRef = useRef(step);
+  const currentStepRef = useRef(currentStep);
+
+  // 当步长参数或CoordinatesTemp发生变化时更新步长值
+  useEffect(() => {
+    if (id === 'x' || id === 'y' || id === 'z') {
+      currentStepRef.current = positionStep || 0.003;
+    } else if (id === 'xR' || id === 'yR' || id === 'zR') {
+      currentStepRef.current = orientationStep || 15;
+    } else {
+      currentStepRef.current = step || 0.003;
+    }
+  }, [positionStep, orientationStep, step, id]);
 
   // 当 CoordinatesTemp 发生变化时更新基础值，但只在不是用户主动控制时更新
   useEffect(() => {
@@ -83,15 +100,14 @@ const RobotArmTargetSlider = ({
         // 根据按下时间调整步长
         if (pressDuration > 500) {
           // 长按超过0.5秒，使用2倍步长
-          currentStepRef.current = step * 2;
+          const acceleratedStep = currentStepRef.current * 2;
+          const delta = pressDirection * acceleratedStep;
+          setAccumValue(prev => Number((prev + delta).toFixed(3)));
         } else {
           // 初始使用基本步长
-          currentStepRef.current = step;
+          const delta = pressDirection * currentStepRef.current;
+          setAccumValue(prev => Number((prev + delta).toFixed(3)));
         }
-
-        // 累加变化值
-        const delta = pressDirection * currentStepRef.current;
-        setAccumValue(prev => Number((prev + delta).toFixed(3)));
         
       }, 200); // 每200毫秒累加一次
 
@@ -102,7 +118,7 @@ const RobotArmTargetSlider = ({
         }
       };
     }
-  }, [pressing, pressDirection, step]);
+  }, [pressing, pressDirection]);
 
   // 按下按钮时触发
   const handleButtonDown = (direction) => {
@@ -119,7 +135,7 @@ const RobotArmTargetSlider = ({
     }, 200);
 
     // 立即应用一次变化（单击效果）
-    const delta = direction * step;
+    const delta = direction * currentStepRef.current;
     setAccumValue(prev => Number((prev + delta).toFixed(3)));
   };
 
@@ -133,7 +149,6 @@ const RobotArmTargetSlider = ({
     // 重置长按状态
     setPressing(false);
     setPressDirection(0);
-    currentStepRef.current = step;
 
     // 鼠标松开时，调用MoveLSrvCall发送累计的变化
     if (accumValue !== 0) {

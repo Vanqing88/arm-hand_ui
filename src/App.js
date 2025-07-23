@@ -1,6 +1,7 @@
 // App.js - 统一风格的机器人控制界面
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ROSLIB from "roslib";
+import { Dialog, DialogActions, DialogContent, DialogTitle, Button, Typography } from '@mui/material';
 import HandControl from './components/HandControl';
 import RobotViewer from './components/RobotViewer';
 import HandViewer from './components/HandViewer';
@@ -294,6 +295,11 @@ const HandSliderControl = ({
   onControlChange, 
   onHandSrvCall 
 }) => {
+  // 添加错误处理状态
+  const [error, setError] = useState("");
+  const [openDialog, setOpenDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
   
   // 从config中获取手掌关节配置并映射为组件需要的格式
   const getHandJointConfig = () => {
@@ -320,6 +326,100 @@ const HandSliderControl = ({
   };
   
   const jointConfig = getHandJointConfig();
+
+  // 输入验证函数
+  const validateInput = (value, jointName, minValue, maxValue) => {
+    // 空值检查
+    if (value === '' || value === null || value === undefined) {
+      return {
+        isValid: false,
+        error: "请输入一个数值。",
+        type: "empty"
+      };
+    }
+    
+    const newValue = parseFloat(value);
+    
+    // 数值格式检查
+    if (isNaN(newValue)) {
+      return {
+        isValid: false,
+        error: "请输入有效的数字，不能包含字母或特殊字符。",
+        type: "format"
+      };
+    }
+    
+    // 范围检查
+    if (newValue < minValue || newValue > maxValue) {
+      return {
+        isValid: false,
+        error: `${jointName}的值超出允许范围。请输入 ${minValue.toFixed(1)} 到 ${maxValue.toFixed(1)} 之间的值。`,
+        type: "range"
+      };
+    }
+    
+    // 精度检查（可选，限制小数位数）
+    const decimalPlaces = (newValue.toString().split('.')[1] || '').length;
+    if (decimalPlaces > 1) {
+      return {
+        isValid: false,
+        error: "请输入最多一位小数的数值。",
+        type: "precision"
+      };
+    }
+    
+    return {
+      isValid: true,
+      value: newValue,
+      error: "",
+      type: "valid"
+    };
+  };
+
+  // 显示错误弹窗
+  const showErrorDialog = (errorMessage) => {
+    setError(errorMessage);
+    setOpenDialog(true);
+  };
+
+  // 关闭错误弹窗
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  // 显示成功提示
+  const showSuccessMessage = (message) => {
+    setSuccessMessage(message);
+    setShowSuccess(true);
+    // 3秒后自动隐藏
+    setTimeout(() => {
+      setShowSuccess(false);
+      setSuccessMessage("");
+    }, 3000);
+  };
+
+  // 输入框值变更处理
+  const handleInputChange = (event, jointName, config) => {
+    const validation = validateInput(event.target.value, jointName, config.min, config.max);
+    
+    if (validation.isValid) {
+      onControlChange(jointName, validation.value);
+      if (!isInteracting) {
+        onInteractionChange(true);
+      }
+      // 显示成功提示
+      showSuccessMessage(`${jointName}已设置为 ${validation.value.toFixed(1)}°`);
+    } else {
+      showErrorDialog(validation.error);
+    }
+  };
+
+  // Enter键确认处理
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !rosServiceCalling) {
+      executeHandMovement();
+    }
+  };
 
   const handleSliderChange = (jointName, value) => {
     onControlChange(jointName, parseFloat(value));
@@ -349,6 +449,14 @@ const HandSliderControl = ({
       width: '100%',
       maxWidth: '400px',
     }}>
+      <style>
+        {`
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}
+      </style>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -403,27 +511,55 @@ const HandSliderControl = ({
                 </div>
               </div>
               
-              <input
-                type="range"
-                min={config.min}
-                max={config.max}
-                step="0.5"
-                value={plannedValue}
-                onChange={(e) => handleSliderChange(jointName, e.target.value)}
-                disabled={rosServiceCalling}
-                style={{
-                  width: '100%',
-                  height: '6px',
-                  borderRadius: '3px',
-                  outline: 'none',
-                  cursor: rosServiceCalling ? 'not-allowed' : 'pointer',
-                  background: `linear-gradient(to right, 
-                    #3498db 0%, 
-                    #3498db ${((plannedValue - config.min) / (config.max - config.min)) * 100}%, 
-                    #ecf0f1 ${((plannedValue - config.min) / (config.max - config.min)) * 100}%, 
-                    #ecf0f1 100%)`
-                }}
-              />
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                marginBottom: '5px'
+              }}>
+                <input
+                  type="range"
+                  min={config.min}
+                  max={config.max}
+                  step="0.5"
+                  value={plannedValue}
+                  onChange={(e) => handleSliderChange(jointName, e.target.value)}
+                  disabled={rosServiceCalling}
+                  style={{
+                    flex: 1,
+                    height: '6px',
+                    borderRadius: '3px',
+                    outline: 'none',
+                    cursor: rosServiceCalling ? 'not-allowed' : 'pointer',
+                    background: `linear-gradient(to right, 
+                      #3498db 0%, 
+                      #3498db ${((plannedValue - config.min) / (config.max - config.min)) * 100}%, 
+                      #ecf0f1 ${((plannedValue - config.min) / (config.max - config.min)) * 100}%, 
+                      #ecf0f1 100%)`
+                  }}
+                />
+                <input
+                  type="number"
+                  min={config.min}
+                  max={config.max}
+                  step="0.1"
+                  value={plannedValue.toFixed(1)}
+                  onChange={(e) => handleInputChange(e, jointName, config)}
+                  onKeyDown={handleKeyDown}
+                  disabled={rosServiceCalling}
+                  style={{
+                    width: '60px',
+                    height: '30px',
+                    padding: '4px 6px',
+                    fontSize: '0.875rem',
+                    border: '1px solid rgba(0, 0, 0, 0.3)',
+                    borderRadius: '4px',
+                    textAlign: 'center',
+                    backgroundColor: 'white',
+                    cursor: rosServiceCalling ? 'not-allowed' : 'text'
+                  }}
+                />
+              </div>
               
               <div style={{
                 display: 'flex',
@@ -486,6 +622,23 @@ const HandSliderControl = ({
         </button>
       </div>
 
+      {/* 成功提示 */}
+      {showSuccess && (
+        <div style={{
+          marginTop: '10px',
+          padding: '8px 12px',
+          backgroundColor: '#d4edda',
+          border: '1px solid #c3e6cb',
+          borderRadius: '4px',
+          textAlign: 'center',
+          fontSize: '12px',
+          color: '#155724',
+          animation: 'fadeIn 0.3s ease-in'
+        }}>
+          ✅ {successMessage}
+        </div>
+      )}
+
       <div style={{
         marginTop: '15px',
         textAlign: 'center',
@@ -496,6 +649,56 @@ const HandSliderControl = ({
         {isInteracting && !rosServiceCalling && '已修改参数，点击执行运动'}
         {!isInteracting && !rosServiceCalling && '等待控制指令'}
       </div>
+
+      {/* 错误提示弹窗 */}
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle style={{
+          backgroundColor: '#f8d7da',
+          color: '#721c24',
+          borderBottom: '1px solid #f5c6cb'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+            输入验证错误
+          </div>
+        </DialogTitle>
+        <DialogContent style={{ padding: '20px' }}>
+          <Typography variant="body1" style={{ 
+            color: '#721c24',
+            lineHeight: '1.5',
+            marginBottom: '10px'
+          }}>
+            {error}
+          </Typography>
+          <Typography variant="body2" style={{ 
+            color: '#6c757d',
+            fontSize: '12px',
+            fontStyle: 'italic'
+          }}>
+            提示：您可以继续使用滑块控制，或重新输入有效的数值。
+          </Typography>
+        </DialogContent>
+        <DialogActions style={{ padding: '16px 20px' }}>
+          <Button 
+            onClick={handleCloseDialog} 
+            variant="contained"
+            style={{
+              backgroundColor: '#721c24',
+              color: 'white',
+              '&:hover': {
+                backgroundColor: '#5a1a1a'
+              }
+            }}
+          >
+            我知道了
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

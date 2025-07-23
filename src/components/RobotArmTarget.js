@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button } from '@mui/material';
+import { Box, Button, Slider, Typography } from '@mui/material';
 import RobotArmTargetSlider from './RobotArmTargetSlider';
 import config from "../config"; // 引入配置文件
 
@@ -20,6 +20,19 @@ const RobotArmTarget = ({
     
     // 加载预设模型配置 leftHand or rightHand
     const jointConfigs = type === "L" ? config.handTargetJointLimits.leftHand : config.handTargetJointLimits.rightHand;
+
+    // 步长状态管理
+    const [positionStep, setPositionStep] = useState(config.handTargetStepConfig.position.default);
+    const [orientationStep, setOrientationStep] = useState(config.handTargetStepConfig.orientation.default);
+
+    // 步长变化处理函数
+    const handlePositionStepChange = (event, newValue) => {
+        setPositionStep(newValue);
+    };
+
+    const handleOrientationStepChange = (event, newValue) => {
+        setOrientationStep(newValue);
+    };
 
     // 统一的外层容器样式 - 与预设动作控制面板保持一致，优化高度
     const containerStyle = {
@@ -60,6 +73,143 @@ const RobotArmTarget = ({
                 }} />
             </div>
 
+            {/* 步长设置区域 */}
+            <div style={{
+                marginBottom: '15px',
+                padding: '12px',
+                backgroundColor: 'rgba(52, 152, 219, 0.05)',
+                borderRadius: '8px',
+                border: '1px solid rgba(52, 152, 219, 0.2)'
+            }}>
+                <h4 style={{
+                    margin: '0 0 12px 0',
+                    color: '#2c3e50',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textAlign: 'center'
+                }}>
+                    步长设置
+                </h4>
+                
+                {/* 位置步长设置 */}
+                <div style={{ marginBottom: '12px' }}>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '6px'
+                    }}>
+                        <label style={{
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            color: '#34495e'
+                        }}>
+                            位置步长
+                        </label>
+                        <span style={{
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            color: '#3498db',
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            padding: '2px 6px',
+                            borderRadius: '3px'
+                        }}>
+                            {positionStep.toFixed(3)}
+                        </span>
+                    </div>
+                    <Slider
+                        value={positionStep}
+                        onChange={handlePositionStepChange}
+                        min={config.handTargetStepConfig.position.min}
+                        max={config.handTargetStepConfig.position.max}
+                        step={config.handTargetStepConfig.position.step}
+                        disabled={rosServiceCalling}
+                        size="small"
+                        sx={{
+                            '& .MuiSlider-thumb': {
+                                height: 16,
+                                width: 16,
+                            },
+                            '& .MuiSlider-track': {
+                                height: 4,
+                            },
+                            '& .MuiSlider-rail': {
+                                height: 4,
+                            }
+                        }}
+                    />
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '10px',
+                        color: '#95a5a6',
+                        marginTop: '4px'
+                    }}>
+                        <span>最小: {config.handTargetStepConfig.position.min}</span>
+                        <span>最大: {config.handTargetStepConfig.position.max}</span>
+                    </div>
+                </div>
+
+                {/* 姿态步长设置 */}
+                <div style={{ marginBottom: '8px' }}>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '6px'
+                    }}>
+                        <label style={{
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            color: '#34495e'
+                        }}>
+                            姿态步长
+                        </label>
+                        <span style={{
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            color: '#3498db',
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            padding: '2px 6px',
+                            borderRadius: '3px'
+                        }}>
+                            {orientationStep}°
+                        </span>
+                    </div>
+                    <Slider
+                        value={orientationStep}
+                        onChange={handleOrientationStepChange}
+                        min={config.handTargetStepConfig.orientation.min}
+                        max={config.handTargetStepConfig.orientation.max}
+                        step={config.handTargetStepConfig.orientation.step}
+                        disabled={rosServiceCalling}
+                        size="small"
+                        sx={{
+                            '& .MuiSlider-thumb': {
+                                height: 16,
+                                width: 16,
+                            },
+                            '& .MuiSlider-track': {
+                                height: 4,
+                            },
+                            '& .MuiSlider-rail': {
+                                height: 4,
+                            }
+                        }}
+                    />
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '10px',
+                        color: '#95a5a6',
+                        marginTop: '4px'
+                    }}>
+                        <span>最小: {config.handTargetStepConfig.orientation.min}°</span>
+                        <span>最大: {config.handTargetStepConfig.orientation.max}°</span>
+                    </div>
+                </div>
+            </div>
+
             {/* 控制滑块区域 */}
             <div style={{ marginBottom: '15px' }}>
                 {jointConfigs.map((slider) => (
@@ -76,6 +226,8 @@ const RobotArmTarget = ({
                         HandRef={HandRef}
                         MoveLSrvCall={MoveLSrvCall}
                         rosServiceCalling={rosServiceCalling}
+                        positionStep={positionStep}
+                        orientationStep={orientationStep}
                     />
                 ))}
             </div>
