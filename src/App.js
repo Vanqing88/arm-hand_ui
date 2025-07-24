@@ -1768,6 +1768,7 @@ const App = () => {
     // 关机 - 动作9
     if (actionId === 9) {
       setArmRosServiceCalling(true);
+      setRobotState(8); // 立即更新状态为关机
       callRobotStateService(8); // OFF = 8
       setTimeout(() => {
         setArmRosServiceCalling(false);
