@@ -185,6 +185,42 @@ const PresetActionButton = ({
   );
 };
 
+// Home按钮组件 - 复用PresetActionButton的样式
+const HomeButton = ({ 
+  onClick, 
+  disabled,
+  rosServiceCalling 
+}) => {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled || rosServiceCalling}
+      style={{
+        width: '80px',
+        height: '80px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        border: 'none',
+        borderRadius: '10px',
+        cursor: (disabled || rosServiceCalling) ? 'not-allowed' : 'pointer',
+        backgroundColor: '#27ae60', // 使用绿色表示home状态
+        color: 'white',
+        transition: 'all 0.3s ease',
+        opacity: (disabled || rosServiceCalling) ? 0.6 : 1,
+        boxShadow: '0 2px 4px rgba(39, 174, 96, 0.2)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '4px'
+      }}
+    >
+      <span style={{ fontSize: '16px' }}>🏠</span>
+      <span>Home</span>
+    </button>
+  );
+};
+
 // 预设动作控制面板组件
 const PresetActionPanel = ({ 
   actions, 
@@ -1025,6 +1061,15 @@ const ArmSliderControl = ({
   );
 };
 
+// Home状态角度配置 - 关节顺序：Shoulder_Y, Shoulder_X, Shoulder_Z, Elbow, Wrist_Z, Wrist_Y, Wrist_X
+const HOME_STATE_CONFIG = {
+  leftArm: [0, 10, 0, -5, 0, 0, 0], // 度
+  rightArm: [0, -10, 0, -5, 0, 0, 0] // 度
+};
+
+// 角度到弧度转换函数
+const convertToRadians = (degrees) => degrees.map(deg => deg * (Math.PI / 180));
+
 const App = () => {
 
   const areJointValuesEqual = useCallback((currentValues, plannedValues) => {
@@ -1732,6 +1777,12 @@ const App = () => {
   };
 
   const handlePresetAction = async (actionId) => {
+    // Home动作
+    if (actionId === 'home') {
+      handleHomeAction();
+      return;
+    }
+    
     // 挥手
     if (actionId === 5) {
       setArmRosServiceCalling(true);
@@ -1742,6 +1793,12 @@ const App = () => {
         });
       }
       setArmRosServiceCalling(false);
+      return;
+    }
+    
+    // Home动作 - 动作6
+    if (actionId === 6) {
+      handleHomeAction();
       return;
     }
     
@@ -1779,6 +1836,30 @@ const App = () => {
     // 其他动作
     if (actionId < 1 || actionId > 12) {
       alert("该预设动作暂未定义");
+      setArmRosServiceCalling(false);
+    }
+  };
+
+  // Home动作处理函数
+  const handleHomeAction = () => {
+    if (!isConnected || armRosServiceCalling) {
+      return;
+    }
+    
+    setArmRosServiceCalling(true);
+    
+    try {
+      const leftAngles = convertToRadians(HOME_STATE_CONFIG.leftArm);
+      const rightAngles = convertToRadians(HOME_STATE_CONFIG.rightArm);
+      
+      // 调用左臂服务
+      callArmMoveJService("/left_arm_movej_service", leftAngles);
+      
+      // 调用右臂服务
+      callArmMoveJService("/right_arm_movej_service", rightAngles);
+      
+    } catch (error) {
+      console.error('Home action failed:', error);
       setArmRosServiceCalling(false);
     }
   };
@@ -2180,7 +2261,7 @@ const App = () => {
                 { id: 3, name: '左转', description: '预设动作3' },
                 { id: 4, name: '右转', description: '预设动作4' },
                 { id: 5, name: '挥手', description: '预设动作5' },
-                { id: 6, name: '动作6', description: '预设动作6' }
+                { id: 6, name: 'Home', description: '回到初始位置' }
               ]}
               rosServiceCalling={armRosServiceCalling}
               onPresetAction={handlePresetAction}
