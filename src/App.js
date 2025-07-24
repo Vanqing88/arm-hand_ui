@@ -359,7 +359,9 @@ const HandSliderControl = ({
     }
     
     // 精度检查（可选，限制小数位数）
-    const decimalPlaces = (newValue.toString().split('.')[1] || '').length;
+    // 对于箭头操作产生的数值，先进行四舍五入到一位小数
+    const roundedValue = Math.round(newValue * 10) / 10;
+    const decimalPlaces = (roundedValue.toString().split('.')[1] || '').length;
     if (decimalPlaces > 1) {
       return {
         isValid: false,
@@ -368,9 +370,12 @@ const HandSliderControl = ({
       };
     }
     
+    // 使用四舍五入后的值
+    const finalValue = roundedValue;
+    
     return {
       isValid: true,
-      value: newValue,
+      value: finalValue,
       error: "",
       type: "valid"
     };

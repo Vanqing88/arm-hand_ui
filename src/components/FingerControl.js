@@ -95,7 +95,7 @@ const FingerControl = ({
         <TextField
           variant="outlined"
           size="small"  // 小尺寸，减小边框
-          value={isInteractingRef.current ? plannedValueRef.current : (realTimeValueRef.current).toFixed(0)} 
+          value={plannedValueRef.current.toFixed(1)} 
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           disabled={rosServiceCalling} // 禁用输入框交互
