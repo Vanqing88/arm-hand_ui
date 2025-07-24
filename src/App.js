@@ -713,7 +713,11 @@ const ArmSliderControl = ({
   type, 
   onControlChange, 
   onMoveJSrvCall,
-  isOnTeacherMode 
+  isOnTeacherMode,
+  // 新增：另一边手臂的状态和回调函数
+  realTimeOtherArmValues = {},
+  plannedOtherArmValues = {},
+  onOtherMoveJSrvCall = null
 }) => {
   
   // 从config中获取机械臂关节配置并映射为组件需要的格式
@@ -762,7 +766,22 @@ const ArmSliderControl = ({
   };
 
   const executeArmMovement = () => {
-    onMoveJSrvCall(plannedArmValues);
+    // 检查当前手臂是否有参数变化
+    const currentArmHasChanges = shouldShowPlannedValues();
+    // 检查另一边手臂是否有参数变化
+    const otherArmHasChanges = shouldShowOtherPlannedValues();
+    
+    // 如果当前手臂有变化，执行当前手臂的运动
+    if (currentArmHasChanges) {
+      onMoveJSrvCall(plannedArmValues);
+    }
+    
+    // 如果另一边手臂有变化且回调函数存在，执行另一边手臂的运动
+    if (otherArmHasChanges && onOtherMoveJSrvCall) {
+      onOtherMoveJSrvCall(plannedOtherArmValues);
+    }
+    
+    // 重置交互状态
     onInteractionChange(false);
   };
 
@@ -784,6 +803,20 @@ const ArmSliderControl = ({
     return Object.keys(plannedArmValues).some(
       key => plannedArmValues[key] !== realTimeArmValues[key]
     );
+  };
+
+  // 新增：判断另一边手臂的planned与realTime是否一致
+  const shouldShowOtherPlannedValues = () => {
+    return Object.keys(plannedOtherArmValues).some(
+      key => plannedOtherArmValues[key] !== realTimeOtherArmValues[key]
+    );
+  };
+
+  // 新增：判断是否有任何手臂需要执行运动
+  const shouldEnableExecuteButton = () => {
+    const currentArmHasChanges = shouldShowPlannedValues();
+    const otherArmHasChanges = shouldShowOtherPlannedValues();
+    return currentArmHasChanges || otherArmHasChanges;
   };
 
   return (
@@ -916,7 +949,7 @@ const ArmSliderControl = ({
       }}>
         <button
           onClick={executeArmMovement}
-          disabled={!shouldShowPlannedValues() || rosServiceCalling || isOnTeacherMode}
+          disabled={!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode}
           style={{
             flex: 1,
             padding: '12px 20px',
@@ -924,11 +957,11 @@ const ArmSliderControl = ({
             fontWeight: 'bold',
             border: 'none',
             borderRadius: '6px',
-            cursor: (!shouldShowPlannedValues() || rosServiceCalling || isOnTeacherMode) ? 'not-allowed' : 'pointer',
-            backgroundColor: (!shouldShowPlannedValues() || rosServiceCalling || isOnTeacherMode) ? '#95a5a6' : '#27ae60',
+            cursor: (!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode) ? 'not-allowed' : 'pointer',
+            backgroundColor: (!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode) ? '#95a5a6' : '#27ae60',
             color: 'white',
             transition: 'all 0.3s ease',
-            opacity: (!shouldShowPlannedValues() || rosServiceCalling || isOnTeacherMode) ? 0.6 : 1
+            opacity: (!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode) ? 0.6 : 1
           }}
         >
           {rosServiceCalling ? '执行中...' : isOnTeacherMode ? '示教模式中' : '执行运动'}
@@ -2324,6 +2357,10 @@ const App = () => {
                   onControlChange={handlePlannedLeftArmChange}
                   onMoveJSrvCall={handleLeftArmMoveJSrvCall}
                   isOnTeacherMode={showTeacher !== 2}
+                  // 传递右臂的状态和回调函数
+                  realTimeOtherArmValues={realTimeRightArmValues}
+                  plannedOtherArmValues={plannedRightArmValues}
+                  onOtherMoveJSrvCall={handleRightArmMoveJSrvCall}
                 />
               </div>
               
@@ -2346,6 +2383,10 @@ const App = () => {
                   onControlChange={handlePlannedRightArmChange}
                   onMoveJSrvCall={handleRightArmMoveJSrvCall}
                   isOnTeacherMode={showTeacher !== 2}
+                  // 传递左臂的状态和回调函数
+                  realTimeOtherArmValues={realTimeLeftArmValues}
+                  plannedOtherArmValues={plannedLeftArmValues}
+                  onOtherMoveJSrvCall={handleLeftArmMoveJSrvCall}
                 />
               </div>
             </>
