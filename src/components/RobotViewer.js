@@ -377,37 +377,37 @@ const RobotViewer = ({
     const objects = [];
     const loader1 = new ColladaLoader();
     
-    // 加载右手模型
-    loader1.load('./H1_Pro1/meshes_dae/HAND_R.dae', (Rcollada) => {
-      const model1 = Rcollada.scene;
-      model1.traverse((child) => {
-        if (child.isMesh) {
-          child.material.transparent = true;
-          child.material.opacity = 0.5;
-        }
-      });
-      model1.rotation.y = Math.PI;
-      scene.add(model1);
-      R_HandRef.current = model1;
-      currentChoosedHandRef.current = R_HandRef.current;
-      objects.push(model1);
-      setSceneReady(true);
-    });
+    // // 加载右手模型
+    // loader1.load('./H1_Pro1/meshes_dae/HAND_R.dae', (Rcollada) => {
+    //   const model1 = Rcollada.scene;
+    //   model1.traverse((child) => {
+    //     if (child.isMesh) {
+    //       child.material.transparent = true;
+    //       child.material.opacity = 0.5;
+    //     }
+    //   });
+    //   model1.rotation.y = Math.PI;
+    //   scene.add(model1);
+    //   R_HandRef.current = model1;
+    //   currentChoosedHandRef.current = R_HandRef.current;
+    //   objects.push(model1);
+    //   setSceneReady(true);
+    // });
 
-    // 加载左手模型
-    loader1.load('./H1_Pro1/meshes_dae/HAND_L.dae', (Lcollada) => {
-      const model = Lcollada.scene;
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.material.transparent = true;
-          child.material.opacity = 0.5;
-        }
-      });
-      scene.add(model);
-      L_HandRef.current = model;
-      objects.push(model);
-      setSceneReady(true);
-    });
+    // // 加载左手模型
+    // loader1.load('./H1_Pro1/meshes_dae/HAND_L.dae', (Lcollada) => {
+    //   const model = Lcollada.scene;
+    //   model.traverse((child) => {
+    //     if (child.isMesh) {
+    //       child.material.transparent = true;
+    //       child.material.opacity = 0.5;
+    //     }
+    //   });
+    //   scene.add(model);
+    //   L_HandRef.current = model;
+    //   objects.push(model);
+    //   setSceneReady(true);
+    // });
 
     // 相机控制
     const controls = new OrbitControls(camera, renderer.domElement);

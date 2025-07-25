@@ -1122,8 +1122,8 @@ const App = () => {
     return { x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w };
   }
 
-  const R_HandRef = useRef(null);
-  const L_HandRef = useRef(null);
+  // const R_HandRef = useRef(null);
+  // const L_HandRef = useRef(null);
 
   // Arm MoveL ROS Service Call
   const callArmMoveLService = (serviceName, target_Poses, notWait = true) => {
@@ -1549,52 +1549,52 @@ const App = () => {
     ros.on('close', handleClose);
     ros.on('error', handleError);
 
-    // 订阅机器人末端位姿
-    const left_arm_tcp_pose = new ROSLIB.Topic({
-      ros,
-      name: '/left_arm_tcp_pose',
-      messageType: 'geometry_msgs/Pose',
-    });
+    // // 订阅机器人末端位姿
+    // const left_arm_tcp_pose = new ROSLIB.Topic({
+    //   ros,
+    //   name: '/left_arm_tcp_pose',
+    //   messageType: 'geometry_msgs/Pose',
+    // });
     
-    left_arm_tcp_pose.subscribe((message) => {
-      const { x, y, z } = message.position;
-      const { xR, yR, zR } = quaternionToEuler(message.orientation);
+    // left_arm_tcp_pose.subscribe((message) => {
+    //   const { x, y, z } = message.position;
+    //   const { xR, yR, zR } = quaternionToEuler(message.orientation);
       
-      setCoordinatesTemp((prev) => ({
-        ...prev,
-        Left: { x, y, z, xR, yR, zR },
-      }));
+    //   setCoordinatesTemp((prev) => ({
+    //     ...prev,
+    //     Left: { x, y, z, xR, yR, zR },
+    //   }));
       
-      L_HandRef.current.position.x = x;
-      L_HandRef.current.position.y = y;
-      L_HandRef.current.position.z = z;
-      L_HandRef.current.rotation.x = xR;
-      L_HandRef.current.rotation.y = yR - Math.PI;
-      L_HandRef.current.rotation.z = -zR;
-    });
+    //   L_HandRef.current.position.x = x;
+    //   L_HandRef.current.position.y = y;
+    //   L_HandRef.current.position.z = z;
+    //   L_HandRef.current.rotation.x = xR;
+    //   L_HandRef.current.rotation.y = yR - Math.PI;
+    //   L_HandRef.current.rotation.z = -zR;
+    // });
 
-    const right_arm_tcp_pose = new ROSLIB.Topic({
-      ros,
-      name: '/right_arm_tcp_pose',
-      messageType: 'geometry_msgs/Pose',
-    });
+    // const right_arm_tcp_pose = new ROSLIB.Topic({
+    //   ros,
+    //   name: '/right_arm_tcp_pose',
+    //   messageType: 'geometry_msgs/Pose',
+    // });
 
-    right_arm_tcp_pose.subscribe((message) => {
-      const { x, y, z } = message.position;
-      const { xR, yR, zR } = quaternionToEuler(message.orientation);
+    // right_arm_tcp_pose.subscribe((message) => {
+    //   const { x, y, z } = message.position;
+    //   const { xR, yR, zR } = quaternionToEuler(message.orientation);
       
-      setCoordinatesTemp((prev) => ({
-        ...prev,
-        Right: { x, y, z, xR, yR, zR },
-      }));
+    //   setCoordinatesTemp((prev) => ({
+    //     ...prev,
+    //     Right: { x, y, z, xR, yR, zR },
+    //   }));
       
-      R_HandRef.current.position.x = x;
-      R_HandRef.current.position.y = y;
-      R_HandRef.current.position.z = z;
-      R_HandRef.current.rotation.x = xR;
-      R_HandRef.current.rotation.y = yR - Math.PI;
-      R_HandRef.current.rotation.z = -zR;
-    })
+    //   R_HandRef.current.position.x = x;
+    //   R_HandRef.current.position.y = y;
+    //   R_HandRef.current.position.z = z;
+    //   R_HandRef.current.rotation.x = xR;
+    //   R_HandRef.current.rotation.y = yR - Math.PI;
+    //   R_HandRef.current.rotation.z = -zR;
+    // })
     
     // 订阅机械臂关节状态
     const armJointStates = new ROSLIB.Topic({
@@ -1720,8 +1720,8 @@ const App = () => {
 
       armJointStates.unsubscribe();
       handJointStates.unsubscribe();
-      left_arm_tcp_pose.unsubscribe();
-      right_arm_tcp_pose.unsubscribe();
+      // left_arm_tcp_pose.unsubscribe();
+      // right_arm_tcp_pose.unsubscribe();
       robotStateTopic.unsubscribe();
       ros.close();
     };
@@ -2141,8 +2141,8 @@ const App = () => {
             onRightMoveJSrvCall={handleRightArmMoveJSrvCall}
             style={{ width: '100%', height: '100%' }}
             showRobotArmTarget={false}
-            L_HandRef={L_HandRef}
-            R_HandRef={R_HandRef}
+            // L_HandRef={L_HandRef}
+            // R_HandRef={R_HandRef}
             CoordinatesTemp={CoordinatesTemp}
             setCoordinatesTemp={setCoordinatesTemp}
             handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
@@ -2169,8 +2169,8 @@ const App = () => {
             onRightMoveJSrvCall={handleRightArmMoveJSrvCall}
             style={{ width: '100%', height: '100%' }}
             showRobotArmTarget={false} // 重要：设置为false，不在RobotViewer内部显示
-            L_HandRef={L_HandRef}
-            R_HandRef={R_HandRef}
+            // L_HandRef={L_HandRef}
+            // R_HandRef={R_HandRef}
             CoordinatesTemp={CoordinatesTemp}
             setCoordinatesTemp={setCoordinatesTemp}
             handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
@@ -2192,7 +2192,7 @@ const App = () => {
               setCoordinatesTemp={setCoordinatesTemp}
               currentChoosedHandRef={null}
               rosServiceCalling={armRosServiceCalling}
-              HandRef={L_HandRef}
+              // HandRef={L_HandRef}
               MoveLSrvCall={handleLeftArmMoveLSrvCall}
             />
           </div>
@@ -2212,7 +2212,7 @@ const App = () => {
               setCoordinatesTemp={setCoordinatesTemp}
               currentChoosedHandRef={null}
               rosServiceCalling={armRosServiceCalling}
-              HandRef={R_HandRef}
+              // HandRef={R_HandRef}
               MoveLSrvCall={handleRightArmMoveLSrvCall}
             />
           </div>
@@ -2237,8 +2237,8 @@ const App = () => {
             onRightMoveJSrvCall={handleRightArmMoveJSrvCall}
             style={{ width: '100%', height: '100%' }}
             showRobotArmTarget={false}
-            L_HandRef={L_HandRef}
-            R_HandRef={R_HandRef}
+            // L_HandRef={L_HandRef}
+            // R_HandRef={R_HandRef}
             CoordinatesTemp={CoordinatesTemp}
             setCoordinatesTemp={setCoordinatesTemp}
             handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
