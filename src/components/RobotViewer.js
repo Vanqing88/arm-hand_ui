@@ -7,6 +7,7 @@ import RobotArmTarget from './RobotArmTarget';
 import ShowCoordinates from './ShowCoordinates';
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader';
 import config from "../config";
+import { loadDualRobots, batchSetTransparency } from './RobotTransparencyUtils';
 
 const RobotViewer = ({
   isInteracting,
@@ -37,6 +38,7 @@ const RobotViewer = ({
   const isDragging = useRef(false);
 
   const [sceneReady, setSceneReady] = useState(false);
+  const [robots, setRobots] = useState({});
   const lastUpdateRef = useRef(Date.now());
   const updateInterval = 100;
   const sceneRef = useRef(null);
@@ -334,6 +336,21 @@ const RobotViewer = ({
     return !(eqL && eqR);
   }, []);
 
+  // 更新机器人关节值
+  const updateRobotJointValues = useCallback((robot, leftArmValues, rightArmValues) => {
+    if (!robot || !robot.joints) return;
+    
+    Object.entries(robot.joints).forEach(([jointName, joint]) => {
+      if (jointName.endsWith('_L') && leftArmValues[jointName] !== undefined) {
+        const angle = leftArmValues[jointName] * (Math.PI / 180);
+        joint.setJointValue(angle);
+      } else if (jointName.endsWith('_R') && rightArmValues[jointName] !== undefined) {
+        const angle = rightArmValues[jointName] * (Math.PI / 180);
+        joint.setJointValue(angle);
+      }
+    });
+  }, []);
+
   useEffect(() => {
     const scene = new THREE.Scene();
     scene.rotateX(-Math.PI / 2);
@@ -406,27 +423,19 @@ const RobotViewer = ({
     controls.update();
     controlsRef.current = controls;
 
-    // 加载URDF机器人模型
-    const loader = new URDFLoader();
-    loader.load('./H1_Pro1/urdf/H1_Pro1.urdf', (robot) => {
-      console.log('URDF机器人模型加载完成');
-      robotRef.current = robot;
-
-      // 遍历机器人模型，设置可见性（保持原始材质不变）
-      robot.traverse((child) => {
-        if (child.isURDFLink && child.children[0]?.isURDFVisual) {
-          if (child.name.startsWith("ILIUM_")) child.visible = true;
-          // 不再修改原始材质，保持机器人的原始外观
-        }
-      });
-
-      scene.add(robot);
+    // 加载双机器人模型
+    const loadedRobots = loadDualRobots(scene, './H1_Pro1/urdf/H1_Pro1.urdf', (robots) => {
+      console.log('双机器人模型加载完成');
+      setRobots(robots);
       
-      // 延迟建立映射关系，确保模型完全加载
+      // 使用实时机器人作为主要引用
+      robotRef.current = robots.realtime;
+      
+      // 等待所有网格加载完成后建立映射关系
       setTimeout(() => {
-        buildJointLinkMapping(robot);
+        buildJointLinkMapping(robots.realtime);
         setSceneReady(true);
-      }, 500);
+      }, 1000); // 增加延迟确保所有资源加载完成
     });
 
     // 保存scene和camera对象到ref中
@@ -445,7 +454,7 @@ const RobotViewer = ({
     };
   }, [buildJointLinkMapping]);
 
-  // 优化更新的频率，包含关节颜色更新逻辑
+  // 优化更新的频率，包含关节颜色更新逻辑和双机器人更新
   const updateArmvalues = useCallback(() => {
     const currentTime = Date.now();
     if (currentTime - lastUpdateRef.current < updateInterval) {
@@ -453,11 +462,15 @@ const RobotViewer = ({
     }
     lastUpdateRef.current = currentTime;
 
-    if (sceneReady && robotRef.current && jointLinkMappingRef.current.size > 0) {
-      const robot = robotRef.current;
+    if (sceneReady && robots.realtime && robots.planned && jointLinkMappingRef.current.size > 0) {
+      // 更新实时机器人
+      updateRobotJointValues(robots.realtime, realTimeLeftArmValuesRef.current, realTimeRightArmValuesRef.current);
+      
+      // 更新规划机器人
+      updateRobotJointValues(robots.planned, plannedLeftArmValuesRef.current, plannedRightArmValuesRef.current);
 
       // 机器人模型关节更新（仅对机械臂关节进行颜色状态检查，手掌保持原始外观）
-      const updateJointValuesWithColorCheck = (values, suffix) => {
+      const updateJointValuesWithColorCheck = (robot, values, suffix) => {
         Object.entries(robot.joints).forEach(([key, joint]) => {
           if (key.endsWith(suffix) && typeof values[key] === 'number' && !isNaN(values[key])) {
             const angle = values[key] * (Math.PI / 180);
@@ -470,18 +483,11 @@ const RobotViewer = ({
         });
       };
 
-      if (shouldShowPlannedValues()) {
-        // 显示planned值并检查机械臂关节极限状态
-        // console.log('更新计划值并检查机械臂关节极限状态');
-        updateJointValuesWithColorCheck(plannedLeftArmValuesRef.current, '_L');
-        updateJointValuesWithColorCheck(plannedRightArmValuesRef.current, '_R');
-      } else {
-        // 显示realTime值并检查机械臂关节极限状态
-        updateJointValuesWithColorCheck(realTimeLeftArmValuesRef.current, '_L');
-        updateJointValuesWithColorCheck(realTimeRightArmValuesRef.current, '_R');
-      }
+      // 对实时机器人进行颜色状态检查
+      updateJointValuesWithColorCheck(robots.realtime, realTimeLeftArmValuesRef.current, '_L');
+      updateJointValuesWithColorCheck(robots.realtime, realTimeRightArmValuesRef.current, '_R');
     }
-  }, [sceneReady, shouldShowPlannedValues, checkJointLimitStatus, updateJointVisualColor]);
+  }, [sceneReady, robots, updateRobotJointValues, checkJointLimitStatus, updateJointVisualColor]);
 
   // 使用 setInterval 控制更新频率
   useEffect(() => {
