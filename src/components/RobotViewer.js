@@ -49,6 +49,10 @@ const RobotViewer = ({
   const originalMaterialsRef = useRef(new Map());
   const warningMaterialsRef = useRef(null);
 
+  // 存储planned模型的关节-链接映射关系和原始材质（独立于realtime模型）
+  const plannedJointLinkMappingRef = useRef(new Map());
+  const plannedOriginalMaterialsRef = useRef(new Map());
+
   const currentChoosedHandRef = useRef(null);
 
   const isInteractingRef = useRef(isInteracting);
@@ -124,8 +128,8 @@ const RobotViewer = ({
     
     const { min, max } = jointLimit;
     const range = max - min;
-    const warningThreshold = 0.1; // 当接近25%的极限范围时开始警告（更容易测试）
-    const dangerThreshold = 0.01;   // 当接近10%的极限范围时显示危险
+    const warningThreshold = 0.1; 
+    const dangerThreshold = 0.05;   
     
     // 计算距离极限的比例
     const distanceToMin = Math.abs(currentValue - min) / range;
@@ -182,14 +186,18 @@ const RobotViewer = ({
   }, []);
 
   // 建立关节到链接的映射关系（仅处理机械臂关节，严格排除手掌）
-  const buildJointLinkMapping = useCallback((robot) => {
+  const buildJointLinkMapping = useCallback((robot, robotType = 'realtime') => {
     if (!robot) return;
     
-    // console.log('开始建立机械臂关节-链接映射关系（严格排除手掌）...');
+    // console.log(`开始建立${robotType}模型的机械臂关节-链接映射关系（严格排除手掌）...`);
+    
+    // 根据robotType选择对应的映射存储
+    const targetMappingRef = robotType === 'planned' ? plannedJointLinkMappingRef : jointLinkMappingRef;
+    const targetMaterialsRef = robotType === 'planned' ? plannedOriginalMaterialsRef : originalMaterialsRef;
     
     // 清空之前的映射
-    jointLinkMappingRef.current.clear();
-    originalMaterialsRef.current.clear();
+    targetMappingRef.current.clear();
+    targetMaterialsRef.current.clear();
     
     // 获取机械臂关节名称列表
     const armJointNames = [
@@ -242,8 +250,8 @@ const RobotViewer = ({
         });
         
         if (relatedLinks.length > 0) {
-          jointLinkMappingRef.current.set(jointName, relatedLinks);
-          // console.log(`机械臂关节 ${jointName} 最终映射到 ${relatedLinks.length} 个非手掌链接`);
+          targetMappingRef.current.set(jointName, relatedLinks);
+          // console.log(`${robotType}模型机械臂关节 ${jointName} 最终映射到 ${relatedLinks.length} 个非手掌链接`);
           
           // 保存原始材质（排除手掌部件）
           relatedLinks.forEach(link => {
@@ -252,13 +260,13 @@ const RobotViewer = ({
                 // 再次确认不是手掌相关的网格
                 const isHandMesh = isHandRelatedMesh(child, link);
                 
-                if (!isHandMesh && !originalMaterialsRef.current.has(child.uuid)) {
+                if (!isHandMesh && !targetMaterialsRef.current.has(child.uuid)) {
                   // 深拷贝原始材质以避免引用问题
                   const originalMaterial = child.material.clone();
-                  originalMaterialsRef.current.set(child.uuid, originalMaterial);
-                  // console.log(`保存了机械臂部件网格 ${child.uuid} 的原始材质 (链接: ${link.name})`);
+                  targetMaterialsRef.current.set(child.uuid, originalMaterial);
+                  // console.log(`保存了${robotType}模型机械臂部件网格 ${child.uuid} 的原始材质 (链接: ${link.name})`);
                 } else if (isHandMesh) {
-                  // console.log(`跳过保存手掌网格材质: ${child.uuid} (链接: ${link.name})`);
+                  // console.log(`跳过保存${robotType}模型手掌网格材质: ${child.uuid} (链接: ${link.name})`);
                 }
               }
             });
@@ -272,26 +280,30 @@ const RobotViewer = ({
       }
     });
     
-    // console.log(`机械臂关节映射关系建立完成，共处理 ${jointLinkMappingRef.current.size} 个机械臂关节`);
+    // console.log(`${robotType}模型机械臂关节映射关系建立完成，共处理 ${targetMappingRef.current.size} 个机械臂关节`);
     
     // 输出最终的映射关系供调试
-    jointLinkMappingRef.current.forEach((links, jointName) => {
+    targetMappingRef.current.forEach((links, jointName) => {
       const linkNames = links.map(link => link.name);
-      // console.log(`最终映射 - 关节 ${jointName}: [${linkNames.join(', ')}]`);
+      // console.log(`${robotType}模型最终映射 - 关节 ${jointName}: [${linkNames.join(', ')}]`);
     });
   }, [isHandRelatedMesh]);
 
   // 更新关节可视化颜色（仅处理机械臂关节）
-  const updateJointVisualColor = useCallback((jointName, status) => {
-    // console.log(`尝试更新机械臂关节 ${jointName} 的颜色状态为: ${status}`);
+  const updateJointVisualColor = useCallback((jointName, status, robotType = 'realtime') => {
+    // console.log(`尝试更新${robotType}模型机械臂关节 ${jointName} 的颜色状态为: ${status}`);
     
-    const relatedLinks = jointLinkMappingRef.current.get(jointName);
+    // 根据robotType选择对应的映射存储和材质存储
+    const targetMappingRef = robotType === 'planned' ? plannedJointLinkMappingRef : jointLinkMappingRef;
+    const targetMaterialsRef = robotType === 'planned' ? plannedOriginalMaterialsRef : originalMaterialsRef;
+    
+    const relatedLinks = targetMappingRef.current.get(jointName);
     if (!relatedLinks || relatedLinks.length === 0) {
       // 这里不输出错误信息，因为手掌关节本来就不在映射中
       return;
     }
     
-    // console.log(`为机械臂关节 ${jointName} 应用 ${status} 状态的材质`);
+    // console.log(`为${robotType}模型机械臂关节 ${jointName} 应用 ${status} 状态的材质`);
     
     // 更新所有相关链接的材质（再次确认排除手掌）
     relatedLinks.forEach(link => {
@@ -303,10 +315,10 @@ const RobotViewer = ({
           if (!isHandMesh) {
             if (status === 'normal') {
               // 恢复原始材质
-              const originalMaterial = originalMaterialsRef.current.get(child.uuid);
+              const originalMaterial = targetMaterialsRef.current.get(child.uuid);
               if (originalMaterial) {
                 child.material = originalMaterial;
-                // console.log(`恢复机械臂部件网格 ${child.uuid} 的原始材质`);
+                // console.log(`恢复${robotType}模型机械臂部件网格 ${child.uuid} 的原始材质`);
               }
             } else {
               // 应用警告或危险材质
@@ -314,11 +326,11 @@ const RobotViewer = ({
               const targetMaterial = materials[status];
               if (targetMaterial) {
                 child.material = targetMaterial;
-                // console.log(`应用 ${status} 材质到机械臂部件网格 ${child.uuid}`);
+                // console.log(`应用 ${status} 材质到${robotType}模型机械臂部件网格 ${child.uuid}`);
               }
             }
           } else {
-            // console.log(`跳过手掌网格材质更新: ${child.uuid} (链接: ${link.name})`);
+            // console.log(`跳过${robotType}模型手掌网格材质更新: ${child.uuid} (链接: ${link.name})`);
           }
         }
       });
@@ -433,7 +445,10 @@ const RobotViewer = ({
       
       // 等待所有网格加载完成后建立映射关系
       setTimeout(() => {
-        buildJointLinkMapping(robots.realtime);
+        // 为realtime模型建立映射关系
+        buildJointLinkMapping(robots.realtime, 'realtime');
+        // 为planned模型建立映射关系
+        buildJointLinkMapping(robots.planned, 'planned');
         setSceneReady(true);
       }, 1000); // 增加延迟确保所有资源加载完成
     });
@@ -462,7 +477,8 @@ const RobotViewer = ({
     }
     lastUpdateRef.current = currentTime;
 
-    if (sceneReady && robots.realtime && robots.planned && jointLinkMappingRef.current.size > 0) {
+    if (sceneReady && robots.realtime && robots.planned && 
+        jointLinkMappingRef.current.size > 0 && plannedJointLinkMappingRef.current.size > 0) {
       // 更新实时机器人
       updateRobotJointValues(robots.realtime, realTimeLeftArmValuesRef.current, realTimeRightArmValuesRef.current);
       
@@ -470,7 +486,7 @@ const RobotViewer = ({
       updateRobotJointValues(robots.planned, plannedLeftArmValuesRef.current, plannedRightArmValuesRef.current);
 
       // 机器人模型关节更新（仅对机械臂关节进行颜色状态检查，手掌保持原始外观）
-      const updateJointValuesWithColorCheck = (robot, values, suffix) => {
+      const updateJointValuesWithColorCheck = (robot, values, suffix, robotType) => {
         Object.entries(robot.joints).forEach(([key, joint]) => {
           if (key.endsWith(suffix) && typeof values[key] === 'number' && !isNaN(values[key])) {
             const angle = values[key] * (Math.PI / 180);
@@ -478,14 +494,18 @@ const RobotViewer = ({
             
             // 只对机械臂关节检查极限状态并更新颜色，手掌关节保持原始颜色
             const limitStatus = checkJointLimitStatus(key, values[key]);
-            updateJointVisualColor(key, limitStatus);
+            updateJointVisualColor(key, limitStatus, robotType);
           }
         });
       };
 
       // 对实时机器人进行颜色状态检查
-      updateJointValuesWithColorCheck(robots.realtime, realTimeLeftArmValuesRef.current, '_L');
-      updateJointValuesWithColorCheck(robots.realtime, realTimeRightArmValuesRef.current, '_R');
+      updateJointValuesWithColorCheck(robots.realtime, realTimeLeftArmValuesRef.current, '_L', 'realtime');
+      updateJointValuesWithColorCheck(robots.realtime, realTimeRightArmValuesRef.current, '_R', 'realtime');
+      
+      // 对规划机器人进行颜色状态检查
+      updateJointValuesWithColorCheck(robots.planned, plannedLeftArmValuesRef.current, '_L', 'planned');
+      updateJointValuesWithColorCheck(robots.planned, plannedRightArmValuesRef.current, '_R', 'planned');
     }
   }, [sceneReady, robots, updateRobotJointValues, checkJointLimitStatus, updateJointVisualColor]);
 
