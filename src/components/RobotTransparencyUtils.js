@@ -14,12 +14,20 @@ export const setRobotTransparency = (robot, opacity = 0.5, transparent = true) =
           child.material = child.material.clone();
         }
         
+        // 强制克隆材质以确保独立修改
+        child.material = child.material.clone();
+        
         child.material.transparent = transparent;
         child.material.opacity = opacity;
         child.material.needsUpdate = true;
         
         // 设置深度写入（对透明材质很重要）
         child.material.depthWrite = !transparent;
+        
+        // 确保alphaTest设置正确
+        if (transparent) {
+          child.material.alphaTest = 0.1;
+        }
       }
       // 处理材质数组
       else if (Array.isArray(child.material)) {
@@ -29,6 +37,9 @@ export const setRobotTransparency = (robot, opacity = 0.5, transparent = true) =
           newMat.opacity = opacity;
           newMat.needsUpdate = true;
           newMat.depthWrite = !transparent;
+          if (transparent) {
+            newMat.alphaTest = 0.1;
+          }
           return newMat;
         });
       }
@@ -44,11 +55,12 @@ export const createTransparentRobotCopy = (originalRobot, opacity = 0.4) => {
   // 为克隆的机器人设置独立的材质
   robotCopy.traverse((child) => {
     if (child.isMesh && child.material) {
-      // 克隆材质避免共享
+      // 强制克隆材质避免共享
       child.material = child.material.clone();
       child.material.transparent = true;
       child.material.opacity = opacity;
       child.material.depthWrite = false;
+      child.material.alphaTest = 0.1;
       child.material.needsUpdate = true;
     }
   });
@@ -68,6 +80,8 @@ export const loadDualRobots = (scene, urdfPath, onLoadComplete) => {
     // 等待加载完成后设置透明度
     setTimeout(() => {
       setRobotTransparency(robot1, 0.5, true);
+      // 专门处理手掌模型的透明度
+      setHandTransparency(robot1, 0.5, true);
     }, 500);
     
     scene.add(robot1);
@@ -142,4 +156,31 @@ export const batchSetTransparency = (robots, opacity, transparent) => {
       }
     });
   }
+};
+
+// 专门处理手掌模型透明度的函数
+export const setHandTransparency = (robot, opacity = 0.5, transparent = true) => {
+  if (!robot) return;
+  
+  // 手掌相关的链接名称
+  const handLinkNames = ['HAND_R', 'HAND_L', 'TCP_R', 'TCP_L'];
+  
+  robot.traverse((child) => {
+    if (child.isURDFLink && handLinkNames.includes(child.name)) {
+      // 找到手掌链接，遍历其所有网格
+      child.traverse((meshChild) => {
+        if (meshChild.isMesh && meshChild.material) {
+          // 强制克隆材质
+          meshChild.material = meshChild.material.clone();
+          meshChild.material.transparent = transparent;
+          meshChild.material.opacity = opacity;
+          meshChild.material.depthWrite = !transparent;
+          if (transparent) {
+            meshChild.material.alphaTest = 0.1;
+          }
+          meshChild.material.needsUpdate = true;
+        }
+      });
+    }
+  });
 }; 
