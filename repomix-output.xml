@@ -1,0 +1,5008 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+components/
+  ActionButtons.js
+  ArmControl.js
+  ArmJointControl.js
+  FingerControl.js
+  HandControl.js
+  HandViewer.js
+  RobotArmTarget.js
+  RobotArmTargetSlider.js
+  RobotTransparencyUtils.js
+  RobotViewer.js
+  ShowCoordinates.js
+  Teacher.js
+App.css
+App.js
+App.test.js
+config.js
+index.css
+index.js
+logo.svg
+reportWebVitals.js
+setupTests.js
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="components/ActionButtons.js">
+// ActionButtons.js
+import React, { useState } from 'react';
+
+const ActionButtons = ({ mergedData, handleExecuteMoveL}) => {
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [buttonText, setButtonText] = useState('执行');
+  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+
+  const handleExecute = () => {
+    handleExecuteMoveL();
+    setButtonText('执行中');
+    setIsButtonDisabled(true);
+
+    setTimeout(() => {
+      setButtonText('执行完成');
+      setTimeout(() => {
+        setButtonText('执行');
+        setIsButtonDisabled(false);
+      }, 500); // 延迟500ms后恢复
+    }, 2000); // 执行2秒后显示执行完成
+  };
+
+  // generateCSVData 在 ActionButtons 中完成
+  const generateCSVData = () => {
+    const { leftHand, rightHand, leftArm, rightArm } = mergedData;
+    const data = [
+      ['Joint Name', 'Left Hand Thumb', 'Left Hand Index', 'Left Hand Middle', 'Left Hand Ring', 'Left Hand Little', 'Right Hand Thumb', 'Right Hand Index', 'Right Hand Middle', 'Right Hand Ring', 'Right Hand Little', 'Joint Values'],
+      ...Object.keys(leftHand).map(key => [
+        key,
+        leftHand[key],
+        rightHand[key] || 0,
+        JSON.stringify(leftArm),
+        JSON.stringify(rightArm),
+      ]),
+    ];
+
+    const csvContent = data.map(row => row.join(',')).join('\n');
+    return csvContent;
+  };
+
+  // saveCSV 在 ActionButtons 中完成
+  const saveCSV = () => {
+    const csvData = generateCSVData();
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'robot_arm_data.csv';
+    link.click();
+  };
+
+  return (
+    <div style={{ position: 'absolute', top: '2%', left: '50%', zIndex: 10, transform: 'translateX(-50%)' }}>
+      {/* 保存按钮 */}
+      <button
+        onClick={saveCSV}
+        style={{
+          padding: '10px 20px',
+          fontSize: '16px',
+          backgroundColor: '#4CAF50',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          marginRight: '10px',
+        }}
+      >
+        保存
+      </button>
+
+      {/* 执行按钮 */}
+      <button
+        onClick={handleExecute}
+        disabled={isButtonDisabled}
+        style={{
+          padding: '10px 20px',
+          fontSize: '16px',
+          backgroundColor: isButtonDisabled ? '#ccc' : '#FF9800',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+        }}
+      >
+        {buttonText}
+      </button>
+    </div>
+  );
+};
+
+export default ActionButtons;
+</file>
+
+<file path="components/ArmControl.js">
+import React, { useCallback } from 'react';
+import { Box } from '@mui/material';
+import ArmJointControl from './ArmJointControl';
+import config from "../config"; // 引入配置文件
+import { color } from 'three/tsl';
+
+const ArmControl = ({
+  isInteracting,
+  onInteractionChange,
+  rosServiceCalling,
+  realTimeArmValues,
+  plannedArmValues,
+  type,
+  onControlChange,
+  onMoveJSrvCall,
+  isOnTeacherMode,
+}) => {
+  const panelStyles = {
+    position: 'absolute',
+    top: '36%',  // 控制面板的垂直位置，您可以根据需求调整 35
+    zIndex: 10,  // 让 JointControlPanel 浮动在 RobotViewer 上方
+    width: '250px',  // 控制面板宽度
+    height: 'auto',  // 高度自适应
+  };
+
+  if (type === 'L') {
+    panelStyles.right = '0';  // 将面板放置在左侧
+  } else if (type === 'R') {
+    panelStyles.left = '0';  // 将面板放置在右侧
+  }
+  // 动态加载关节配置
+  const jointConfigs =
+    type === "L" ? config.armJointLimits.leftArm : config.armJointLimits.rightArm;
+
+  const areJointValuesEqual = useCallback((currentValues, plannedValues) => {
+    return Object.keys(plannedValues).every(
+      (key) => currentValues[key] === plannedValues[key]
+    );
+  }, []);
+
+  const callSrvEvent = () => {
+    // if (JSON.stringify(realTimeArmValues) !== JSON.stringify(plannedArmValues)){
+    if (!areJointValuesEqual(realTimeArmValues, plannedArmValues)) {
+      onMoveJSrvCall(plannedArmValues); // 调用 ROS 服务
+    }
+  };
+
+  return (
+    <Box sx={panelStyles}>
+      {jointConfigs.map((joint) => (
+        <ArmJointControl
+
+          key={joint.name}
+          jointName={joint.name}
+          minValue={joint.min}
+          maxValue={joint.max}
+          realTimeValue={realTimeArmValues[joint.name] || 0}
+          plannedValue={plannedArmValues[joint.name] || 0}
+          rosServiceCalling={rosServiceCalling}
+          isInteracting={isInteracting}
+          onInteractionChange={onInteractionChange}
+          onControlChange={onControlChange}
+          callSrvEvent={callSrvEvent}
+          isOnTeacherMode={isOnTeacherMode}
+
+        />
+      ))}
+    </Box>
+  );
+};
+
+export default ArmControl;
+</file>
+
+<file path="components/ArmJointControl.js">
+import React, { useRef, useEffect,useCallback,useState} from 'react';
+import { Box, Typography, Slider } from '@mui/material';
+
+const ArmJointControl = ({
+  jointName,
+  minValue,
+  maxValue,
+  realTimeValue,
+  plannedValue,
+  rosServiceCalling,
+  isInteracting,
+  onInteractionChange,
+  isOnTeacherMode,
+  onControlChange,
+  callSrvEvent
+}) => {
+
+  // 保存isInteracting状态，不用管；异步needs，为了事件函数中拿到最新状态而同步 ref 
+  const isInteractingRef = useRef(isInteracting);
+  useEffect(() => {
+    isInteractingRef.current = isInteracting; // 保存isInteracting状态
+    }, [isInteracting]);
+
+  const realTimeValueRef = useRef(realTimeValue); 
+  const plannedValueRef = useRef(plannedValue);
+  useEffect(() => {
+    realTimeValueRef.current = realTimeValue; // 每次 realTimeValue 改变时更新 ref
+  }, [realTimeValue]);
+  useEffect(() => {
+    plannedValueRef.current = plannedValue; // 每次 plannedValue 改变时更新 ref
+  }, [plannedValue]);
+  // const areJointValueEqual = useCallback(() => {
+  //   return realTimeValueRef.current === plannedValueRef.current;;
+  // }, []);
+
+  // 滑块值变化时触发
+  const handleSliderChange = (event, newValue) => {
+    // if(!isInteractingRef.current){
+    //   onInteractionChange(true); // 通知父组件开始交互
+    // }
+    plannedValueRef.current = newValue;
+    onControlChange(jointName, newValue); // 通知父组件更新规划值
+  };
+
+  const handleSliderChangeStart = (event, newValue) => {
+    if(!isInteractingRef.current){
+      onInteractionChange(true); // 通知父组件开始交互
+    }
+  };
+
+  // 滑块释放时结束交互
+  const handleSliderChangeCommitted = () => {
+    if(!rosServiceCalling){
+      callSrvEvent(); // 通知 ros 节点移动
+    }
+    onInteractionChange(false); // 通知父组件结束交互
+  };
+
+  return (
+    <Box
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
+      m={1}
+      sx={{
+        backgroundColor: 'rgba(0, 0, 0, 0.05)', // 半透明背景
+        borderRadius: '2px',
+        padding: '2px', ////10->5
+      }}
+    >
+      <Typography variant="body2" style={{ fontSize: '0.8rem', marginBottom: '7px' }}>
+        {jointName}:  {realTimeValue.toFixed(3)}
+      </Typography>
+      <Slider
+        value={isInteractingRef.current? plannedValueRef.current : realTimeValueRef.current} 
+        min={minValue}
+        max={maxValue}
+        step={0.01} // 调整步长（可根据需要调整）
+        onChange={handleSliderChange}
+        onMouseDown={handleSliderChangeStart}
+        onTouchStart={handleSliderChangeStart}
+        onChangeCommitted={handleSliderChangeCommitted}
+        disabled={isOnTeacherMode} // 禁用滑块交互
+        sx={{
+          width: '90%', // 滑块宽度
+          '& .MuiSlider-thumb': { height: 10, width: 12 }, // 调整滑块样式
+        }}
+      />
+    </Box>
+  );
+};
+
+export default ArmJointControl;
+</file>
+
+<file path="components/FingerControl.js">
+// FingerControl.js
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { Box, Typography, TextField, Dialog, DialogActions, DialogContent, DialogTitle, Button } from '@mui/material';
+
+// 后续的优化可以通过 React.memo 来避免不必要的重新渲染
+const FingerControl = ({ 
+  jointName,
+  minValue = 0,  // 默认最小值
+  maxValue = 180, // 默认最大值
+  realTimeValue,
+  plannedValue,
+  rosServiceCalling,
+  isInteracting,
+  onInteractionChange,
+  onControlChange,
+  enterEvent,
+}) => {
+  const [error, setError] = useState(""); // 用于显示错误提示信息
+  const [openDialog, setOpenDialog] = useState(false); // 用于控制弹窗的显示和关闭
+
+  const isInteractingRef = useRef(isInteracting);
+  useEffect(() => {
+    isInteractingRef.current = isInteracting; // 保存isInteracting状态
+    }, [isInteracting]);
+
+  const realTimeValueRef = useRef(realTimeValue); 
+  const plannedValueRef = useRef(plannedValue);
+
+  useEffect(() => {
+    realTimeValueRef.current = realTimeValue; // 每次 realTimeValue 改变时更新 ref
+  }, [realTimeValue]);
+
+  useEffect(() => {
+    plannedValueRef.current = plannedValue; // 每次 plannedValue 改变时更新 ref
+  }, [plannedValue]);
+
+  // const areJointValueEqual = useCallback(() => {
+  //   return realTimeValueRef.current === plannedValueRef.current;
+  // }, []);
+
+  // 输入框值变更时
+  const handleInputChange = (event) => {
+    if(!isInteractingRef.current){
+      onInteractionChange(true); // 通知父组件开始交互
+    }
+    const newValue = parseFloat(event.target.value);
+
+    // 判断输入值是否合法并在范围内
+    if (!isNaN(newValue)) {
+      if (newValue < minValue || newValue > maxValue) {
+        // 超出范围，显示错误提示
+        setError(`${jointName}'s value is out of the allowed range. Please enter a value between ${minValue} and ${maxValue}.`);
+        setOpenDialog(true); // 打开弹窗
+      } else {
+        // 合法范围内，更新 plannedValue 并通知父组件
+        setError("");  // 清除错误提示
+        plannedValueRef.current = newValue;
+        onControlChange(jointName, newValue);
+      }
+    }
+  };
+
+  // 按下 Enter 键时处理
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !rosServiceCalling) {
+      enterEvent(); // 调用父组件中的 enterEvent 方法
+    }
+    onInteractionChange(false); // 通知父组件结束交互
+  };
+
+  // 关闭弹窗
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  return (
+    <Box
+      mx={0.1}
+      flex={1}
+      display="flex"
+      flexDirection="row"
+      alignItems="center"
+      sx={{
+        backgroundColor: 'rgba(0, 0, 0, 0.1)', // 半透明背景
+        borderRadius: '5px', // 圆角矩形
+        padding: '1px',
+        height: '60px', // 控制整体高度
+        width: '80px', // 控制整体高度
+      }}
+    >
+      {/* 左侧：手指名称和输入框 */}
+      <Box display="flex" flexDirection="column" justifyContent="space-between" alignItems="center" mx={0.5}>
+        <Typography variant="body1" style={{ fontSize: '0.8rem' }}>{jointName}</Typography>
+        {/* 调整 TextField 紧凑样式并支持直接修改 */}
+        <TextField
+          variant="outlined"
+          size="small"  // 小尺寸，减小边框
+          value={plannedValueRef.current.toFixed(1)} 
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          disabled={rosServiceCalling} // 禁用输入框交互
+          sx={{
+            width: '35px',  // 控制宽度，使输入框更紧凑
+            '& .MuiOutlinedInput-root': {
+              padding: '0', // 去除边框内的padding
+              '& fieldset': {
+                borderColor: 'rgba(0, 0, 0, 0.3)', // 自定义边框颜色
+              },
+            },
+            '& .MuiInputBase-input': {
+              padding: '2px 4px', // 控制文本输入的内边距
+              fontSize: '0.875rem', // 控制字体大小
+            },
+          }}
+        />
+      </Box>
+      
+      {/* 弹窗错误提示 */}
+      <Dialog open={openDialog} onClose={handleCloseDialog}>
+        <DialogTitle>Error</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">{error}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default FingerControl;
+</file>
+
+<file path="components/HandControl.js">
+import React, { useCallback } from 'react';
+import { Box } from '@mui/material';
+import FingerControl from './FingerControl';
+import config from "../config";  // 引入配置文件
+
+const FingerNames = ['thumb_IP', 'thumb_CMC', 'index_MCP', 'middle_MCP', 'ring_MCP', 'little_MCP'];
+
+const HandControl = ({ 
+  isInteracting,
+  onInteractionChange,
+  rosServiceCalling,
+  realTimeHandValues,
+  plannedHandValues,
+  type,
+  onControlChange,
+  onHandSrvCall
+}) => {
+  const panelStyles = {
+    position: 'absolute',
+    top: '1%',  // 控制面板的垂直位置，您可以根据需求调整
+    zIndex: 10,  // 让 JointControlPanel 浮动在 RobotViewer 上方
+    width: 'auto',  // 控制面板宽度自适应
+    height: 'auto',  // 高度自适应
+    display: 'flex',  // 使用 flex 布局
+    flexDirection: 'row',  // 横向排列
+  };
+
+  if (type === 'L') {
+    panelStyles.left = '0';  // 将面板放置在左侧
+  } else if (type === 'R') {
+    panelStyles.right = '0';  // 将面板放置在右侧
+  }
+
+  // 动态加载左右手的关节配置
+  const jointConfigs = type === 'L' 
+    ? config.handJointLimits.leftHand 
+    : config.handJointLimits.rightHand;
+
+  const areJointValuesEqual = useCallback((currentValues, plannedValues) => {
+    return Object.keys(plannedValues).every(
+      (key) => currentValues[key] === plannedValues[key]
+    );
+  }, []);
+
+  // 检查实时值和规划值是否不同，如果不同则调用ROS服务
+  const enterEvent = () => {
+    // if (JSON.stringify(realTimeHandValues) !== JSON.stringify(plannedHandValues)){
+    if (!areJointValuesEqual(realTimeHandValues, plannedHandValues)){
+      onHandSrvCall(plannedHandValues); // 调用 ROS 服务
+    }
+  };
+
+  return (
+    <Box sx={panelStyles}>
+      {FingerNames.map((fingerName) => {
+        const jointConfig = jointConfigs.find(joint => joint.name === fingerName); // 获取每个手指的配置
+  
+        if (!jointConfig) return null; // 如果没有对应的关节配置，则跳过
+  
+        return (
+          <FingerControl
+            key={fingerName}
+            jointName={fingerName} // 手指关节名称
+            minValue={jointConfig.min} // 获取最小值
+            maxValue={jointConfig.max} // 获取最大值
+            realTimeValue={realTimeHandValues[fingerName] || 0} // 默认值为 0，避免 undefined
+            plannedValue={plannedHandValues[fingerName] || 0} // 默认值为 0，避免 undefined
+            rosServiceCalling={rosServiceCalling}
+            isInteracting={isInteracting}
+            onInteractionChange={onInteractionChange}
+            onControlChange={onControlChange}
+            enterEvent={enterEvent}
+          />
+        );
+      })}
+    </Box>
+  );
+};
+
+export default HandControl;
+</file>
+
+<file path="components/HandViewer.js">
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import * as THREE from 'three';
+import URDFLoader from 'urdf-loader';
+
+const HandViewer = ({ 
+  isInteracting,
+  onInteractionChange,
+  rosServiceCalling, 
+  realTimeHandValues,  
+  plannedHandValues, 
+  type,
+  onControlChange,
+  onHandSrvCall
+}) => {
+  const canvasRef = useRef(null);
+  const robotRef = useRef(null); // 用来存储加载的机器人模型
+  const [sceneReady, setSceneReady] = useState(false); // 场景是否准备好
+  const lastUpdateRef = useRef(Date.now()); // 用于存储上次更新时间
+  const updateInterval = 100; // 每 100ms 更新一次
+  const sceneRef = useRef(null); // 添加一个ref来保存scene对象
+  const cameraRef = useRef(null); // 添加一个ref来保存camera对象
+
+  const isInteractingRef = useRef(isInteracting);
+  useEffect(() => {
+    isInteractingRef.current = isInteracting; // 保存isInteracting状态
+    }, [isInteracting]);
+
+  const realTimeHandValuesRef = useRef(realTimeHandValues); 
+  const plannedHandValuesRef = useRef(plannedHandValues);
+  useEffect(() => {
+    realTimeHandValuesRef.current = realTimeHandValues; // 每次 realTimeHandValues 改变时更新 ref
+  }, [realTimeHandValues]);
+  useEffect(() => {
+    plannedHandValuesRef.current = plannedHandValues; // 每次 plannedHandValues 改变时更新 ref
+  }, [plannedHandValues]);
+  const areJointValuesEqual = useCallback((currentValues, plannedValues) => {
+    return Object.keys(plannedValues).every(
+      (key) => currentValues[key] === plannedValues[key]
+    );
+  }, []);
+
+  useEffect(() => {
+    // 初始化场景、相机和渲染器
+    const scene = new THREE.Scene();
+    scene.position.y -= 0.1;
+    scene.position.x = 0.02;
+    scene.background = new THREE.Color(0xf0f0f0);
+
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1000);
+    const pos = type === 'L' ? 0.3 : -0.3;
+    camera.position.set(0, 0, pos);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current });
+    renderer.setSize(window.innerHeight / 3.6, window.innerHeight / 3.6);
+
+    const light = new THREE.AmbientLight(0x404040);
+    const directionalLight0 = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight0.position.set(1, 1, 1).normalize();
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight1.position.set(1, 1, -1).normalize();
+
+    scene.add(light, directionalLight0, directionalLight1);
+
+    const urdf = type === 'L' ? './lefthand/urdf/lefthand.urdf' : './righthand/urdf/righthand.urdf';
+    // 加载URDF模型
+    const loader = new URDFLoader();
+    loader.load(urdf, (robot) => {
+      robot.rotation.x = Math.PI / -2;
+
+      // 动态调整机器人关节
+      robot.traverse((child) => {
+        if (child.isURDFLink && child.children[0].isURDFVisual) {
+          child.children[0].material = new THREE.MeshStandardMaterial({
+            color: 0xFF0000,
+            roughness: 0.4,
+            metalness: 0.5,
+            emissive: 0x222222,
+          });
+        }
+      });
+      robotRef.current = robot; // 存储模型引用
+
+
+      scene.add(robot);
+      setSceneReady(true); // 场景准备好了
+    });
+
+    // 保存scene和camera对象到ref中
+    sceneRef.current = scene;
+    cameraRef.current = camera;
+
+    // 渲染函数
+    const animate = () => {
+      requestAnimationFrame(animate);
+      if (renderer) {
+        renderer.render(sceneRef.current, cameraRef.current);
+      }
+    };
+    animate();
+
+    return () => {
+      if (renderer) renderer.dispose();
+    };
+  }, [type]);
+
+  // 关节的映射关系
+  const jointSyncMap = {
+    'index_MCP': ['index_MCP', 'index_PIP', 'index_DIP'],
+    'middle_MCP': ['middle_MCP', 'middle_PIP', 'middle_DIP'],
+    'ring_MCP': ['ring_MCP', 'ring_PIP', 'ring_DIP'],
+    'little_MCP': ['little_MCP', 'little_PIP', 'little_DIP'],
+    'thumb_IP': ['thumb_IP', 'thumb_MP'],
+    'thumb_CMC': ['thumb_CMC'],
+  };
+
+  // 辅助函数：更新关节值
+  function updateJointValue(robot, jointName, value) {
+    const joint = robot.joints[jointName];
+    if (joint) {
+      joint.setJointValue(value);
+    }
+  }
+
+  // 优化更新的频率
+  const updateHandValues = useCallback(() => {
+    const currentTime = Date.now();
+    if (currentTime - lastUpdateRef.current < updateInterval) {
+      return; // 如果更新频率过高，则跳过更新
+    }
+    lastUpdateRef.current = currentTime;
+
+    if (sceneReady && robotRef.current) {
+      const robot = robotRef.current;
+      const updatedValues = realTimeHandValuesRef.current;
+
+      // 判断并更新关节值
+      const valuesToUpdate = isInteractingRef.current
+      ? plannedHandValuesRef.current
+      : updatedValues;
+
+      Object.entries(valuesToUpdate).forEach(([key, value]) => {
+        if (typeof value === 'number' && !isNaN(value)) {
+          // 获取与当前关节相关联的所有关节
+          const jointsToUpdate = jointSyncMap[key] || [key]; // 默认更新当前关节
+          jointsToUpdate.forEach((jointName) => {
+            updateJointValue(robot, jointName, value*(Math.PI/180));
+          });
+        }
+      });
+    }
+  }, [sceneReady]);
+
+  // 使用 setInterval 控制更新频率
+  useEffect(() => {
+    const interval = setInterval(updateHandValues, updateInterval);
+    return () => clearInterval(interval); // 清理 interval
+  }, [updateHandValues]);
+
+  // 鼠标交互部分
+  const dragging = useRef(false);
+  const initialMouseY = useRef(null);
+  const selectedObjectRef = useRef(null);
+
+  // 兼容触摸和鼠标事件的辅助函数
+  function getClientXY(event) {
+    if (event.touches && event.touches.length > 0) {
+      return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+    } else if (event.changedTouches && event.changedTouches.length > 0) {
+      return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+    } else {
+      return { x: event.clientX, y: event.clientY };
+    }
+  }
+
+  const onMouseDown = useCallback((event) => {
+    if (dragging.current) return;
+    dragging.current = true;
+    onInteractionChange(true);
+    if (!sceneRef.current || !cameraRef.current) return;
+    const { x, y } = getClientXY(event);
+    const rect = canvasRef.current.getBoundingClientRect();
+    initialMouseY.current = y;
+    const mouse = new THREE.Vector2(
+      ((x - rect.left) / rect.width) * 2 - 1,
+      -((y - rect.top) / rect.height) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, cameraRef.current);
+    const intersects = raycaster.intersectObjects(sceneRef.current.children, true);
+    if (intersects.length > 0) {
+      const selectedObject = intersects[0].object.parent.parent;
+      const classifySelection = (object) => {
+        const { name } = object;
+        let joint = "unknown";
+        if (name.startsWith("index")) joint = "index_MCP";
+        else if (name.startsWith("middle")) joint = "middle_MCP";
+        else if (name.startsWith("ring")) joint = "ring_MCP";
+        else if (name.startsWith("little")) joint = "little_MCP";
+        else if (name === "base_link" || name.startsWith("thumb_Link1"))
+          joint = "thumb_CMC";
+        else if (name.startsWith("thumb_Link2") || name.startsWith("thumb_Link3"))
+          joint = "thumb_IP";
+        return {
+          ...object,
+          joint,
+        };
+      };
+      selectedObjectRef.current = classifySelection(selectedObject);
+    }
+    // 阻止移动端长按弹出菜单
+    if (event.touches) event.preventDefault();
+  });
+
+  const onMouseMove = useCallback((event) => {
+    if (dragging.current && selectedObjectRef.current?.joint !== "unknown" && !rosServiceCalling) {
+      const { y } = getClientXY(event);
+      const deltaY = y - initialMouseY.current;
+      const name = selectedObjectRef.current.joint;
+      const jointValueChange = deltaY / 2;
+      const newValues = plannedHandValuesRef.current[name] + jointValueChange;
+      plannedHandValuesRef.current[name] = newValues;
+      onControlChange(name, newValues);
+      initialMouseY.current = y;
+    }
+    // 阻止页面滚动
+    if (event.touches) event.preventDefault();
+  });
+
+  const onMouseUp = useCallback((event) => {
+    dragging.current = false;
+    if (selectedObjectRef.current && selectedObjectRef.current.name !== "unknown") {
+      if (!areJointValuesEqual(realTimeHandValuesRef.current, plannedHandValuesRef.current)) {
+        onHandSrvCall(plannedHandValuesRef.current);
+      }
+    }
+    onInteractionChange(false);
+    selectedObjectRef.current = null;
+    // 阻止移动端点击穿透
+    if (event.touches || event.changedTouches) event.preventDefault();
+  });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    // 鼠标事件
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('mouseleave', onMouseUp);
+    // 触摸事件
+    canvas.addEventListener('touchstart', onMouseDown, { passive: false });
+    canvas.addEventListener('touchmove', onMouseMove, { passive: false });
+    canvas.addEventListener('touchend', onMouseUp, { passive: false });
+    canvas.addEventListener('touchcancel', onMouseUp, { passive: false });
+    return () => {
+      canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('mousemove', onMouseMove);
+      canvas.removeEventListener('mouseup', onMouseUp);
+      canvas.removeEventListener('mouseleave', onMouseUp);
+      canvas.removeEventListener('touchstart', onMouseDown);
+      canvas.removeEventListener('touchmove', onMouseMove);
+      canvas.removeEventListener('touchend', onMouseUp);
+      canvas.removeEventListener('touchcancel', onMouseUp);
+    };
+  }, [onMouseDown, onMouseMove, onMouseUp]);
+  return (
+    <canvas ref={canvasRef} />
+  );
+};
+
+export default HandViewer;
+</file>
+
+<file path="components/RobotArmTarget.js">
+import React, { useState, useEffect } from 'react';
+import { Box, Button, Slider, Typography } from '@mui/material';
+import RobotArmTargetSlider from './RobotArmTargetSlider';
+import config from "../config"; // 引入配置文件
+
+/*
+模型(L_HandRef,R_HandRef)的目标控制面板 - 统一样式版本
+ */
+
+const RobotArmTarget = ({
+    type,
+    currentChoosedHandRef,
+    CoordinatesTemp,
+    setCoordinatesTemp,
+    HandRef,
+    MoveLSrvCall,
+    rosServiceCalling,
+}) => {
+    const index_LorR = type === 'L' ? 'Left' : 'Right';
+    
+    // 加载预设模型配置 leftHand or rightHand
+    const jointConfigs = type === "L" ? config.handTargetJointLimits.leftHand : config.handTargetJointLimits.rightHand;
+
+    // 步长状态管理
+    const [positionStep, setPositionStep] = useState(config.handTargetStepConfig.position.default);
+    const [orientationStep, setOrientationStep] = useState(config.handTargetStepConfig.orientation.default);
+
+    // 步长变化处理函数
+    const handlePositionStepChange = (event, newValue) => {
+        setPositionStep(newValue);
+    };
+
+    const handleOrientationStepChange = (event, newValue) => {
+        setOrientationStep(newValue);
+    };
+
+    // 统一的外层容器样式 - 与预设动作控制面板保持一致，优化高度
+    const containerStyle = {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: '10px',
+        padding: '15px',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        width: '100%',
+        maxWidth: '380px',
+        maxHeight: '75vh', // 限制最大高度为视口的75%
+        overflowY: 'auto', // 如果内容过多则允许滚动
+    };
+
+    return (
+        <div style={containerStyle}>
+            {/* 统一的标题栏 - 与其他控制面板保持一致 */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '15px',
+                borderBottom: '2px solid #3498db',
+                paddingBottom: '8px'
+            }}>
+                <h3 style={{
+                    margin: 0,
+                    color: '#2c3e50',
+                    fontSize: '16px',
+                    fontWeight: 'bold'
+                }}>
+                    {type === 'L' ? '左臂' : '右臂'}末端控制
+                </h3>
+                <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: rosServiceCalling ? '#e74c3c' : '#27ae60'
+                }} />
+            </div>
+
+            {/* 步长设置区域 */}
+            <div style={{
+                marginBottom: '15px',
+                padding: '12px',
+                backgroundColor: 'rgba(52, 152, 219, 0.05)',
+                borderRadius: '8px',
+                border: '1px solid rgba(52, 152, 219, 0.2)'
+            }}>
+                <h4 style={{
+                    margin: '0 0 12px 0',
+                    color: '#2c3e50',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    textAlign: 'center'
+                }}>
+                    步长设置
+                </h4>
+                
+                {/* 位置步长设置 */}
+                <div style={{ marginBottom: '12px' }}>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '6px'
+                    }}>
+                        <label style={{
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            color: '#34495e'
+                        }}>
+                            位置步长
+                        </label>
+                        <span style={{
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            color: '#3498db',
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            padding: '2px 6px',
+                            borderRadius: '3px'
+                        }}>
+                            {positionStep.toFixed(3)}
+                        </span>
+                    </div>
+                    <Slider
+                        value={positionStep}
+                        onChange={handlePositionStepChange}
+                        min={config.handTargetStepConfig.position.min}
+                        max={config.handTargetStepConfig.position.max}
+                        step={config.handTargetStepConfig.position.step}
+                        disabled={rosServiceCalling}
+                        size="small"
+                        sx={{
+                            '& .MuiSlider-thumb': {
+                                height: 16,
+                                width: 16,
+                            },
+                            '& .MuiSlider-track': {
+                                height: 4,
+                            },
+                            '& .MuiSlider-rail': {
+                                height: 4,
+                            }
+                        }}
+                    />
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '10px',
+                        color: '#95a5a6',
+                        marginTop: '4px'
+                    }}>
+                        <span>最小: {config.handTargetStepConfig.position.min}</span>
+                        <span>最大: {config.handTargetStepConfig.position.max}</span>
+                    </div>
+                </div>
+
+                {/* 姿态步长设置 */}
+                <div style={{ marginBottom: '8px' }}>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '6px'
+                    }}>
+                        <label style={{
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            color: '#34495e'
+                        }}>
+                            姿态步长
+                        </label>
+                        <span style={{
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            color: '#3498db',
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            padding: '2px 6px',
+                            borderRadius: '3px'
+                        }}>
+                            {orientationStep}°
+                        </span>
+                    </div>
+                    <Slider
+                        value={orientationStep}
+                        onChange={handleOrientationStepChange}
+                        min={config.handTargetStepConfig.orientation.min}
+                        max={config.handTargetStepConfig.orientation.max}
+                        step={config.handTargetStepConfig.orientation.step}
+                        disabled={rosServiceCalling}
+                        size="small"
+                        sx={{
+                            '& .MuiSlider-thumb': {
+                                height: 16,
+                                width: 16,
+                            },
+                            '& .MuiSlider-track': {
+                                height: 4,
+                            },
+                            '& .MuiSlider-rail': {
+                                height: 4,
+                            }
+                        }}
+                    />
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '10px',
+                        color: '#95a5a6',
+                        marginTop: '4px'
+                    }}>
+                        <span>最小: {config.handTargetStepConfig.orientation.min}°</span>
+                        <span>最大: {config.handTargetStepConfig.orientation.max}°</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* 控制滑块区域 */}
+            <div style={{ marginBottom: '15px' }}>
+                {jointConfigs.map((slider) => (
+                    <RobotArmTargetSlider
+                        name={slider.name}
+                        min={slider.min}
+                        max={slider.max}
+                        key={slider.key}
+                        id={slider.id}
+                        currentChoosedHandRef={currentChoosedHandRef}
+                        CoordinatesTemp={CoordinatesTemp}
+                        setCoordinatesTemp={setCoordinatesTemp}
+                        index_LorR={index_LorR}
+                        HandRef={HandRef}
+                        MoveLSrvCall={MoveLSrvCall}
+                        rosServiceCalling={rosServiceCalling}
+                        positionStep={positionStep}
+                        orientationStep={orientationStep}
+                    />
+                ))}
+            </div>
+
+            {/* 状态提示区域 */}
+            <div style={{
+                marginTop: '10px',
+                textAlign: 'center',
+                fontSize: '11px',
+                color: '#7f8c8d'
+            }}>
+                {rosServiceCalling && '正在执行末端运动...'}
+                {!rosServiceCalling && '使用按钮控制机械臂末端位置'}
+            </div>
+
+            {/* 安全提示区域 */}
+            <div style={{
+                marginTop: '8px',
+                padding: '6px 10px',
+                backgroundColor: 'rgba(241, 196, 15, 0.1)',
+                border: '1px solid rgba(241, 196, 15, 0.3)',
+                borderRadius: '6px',
+                fontSize: '11px',
+                color: '#f39c12',
+                textAlign: 'center'
+            }}>
+                ⚠️ 控制末端位置前请确认机器人周围安全
+            </div>
+        </div>
+    );
+}
+
+export default RobotArmTarget;
+</file>
+
+<file path="components/RobotArmTargetSlider.js">
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Typography, Slider, Button, IconButton } from '@mui/material';
+import * as THREE from "three";
+import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
+
+/*
+模型(L_HandRef,R_HandRef)的目标滑块 用度数 有度数转弧度的逻辑 cause CoordinatesTemp需要弧度
+统一样式版本 - 与预设动作控制面板风格保持一致
+ */
+
+const RobotArmTargetSlider = ({
+  name,        // 滑块名称（比如 "X Position"）
+  min,         // 最小值
+  max,         // 最大值
+  id,         // 滑块 id属性 用于作为坐标更改的 key值
+  step,        // 步长（保留向后兼容）
+  currentChoosedHandRef, //目前好像没用
+  HandRef,
+  CoordinatesTemp,
+  setCoordinatesTemp,
+  index_LorR, // 用于区分左右手的键值
+  value: initialValue = 0,
+  MoveLSrvCall,
+  rosServiceCalling,
+  positionStep,    // 位置步长参数
+  orientationStep, // 姿态步长参数
+}) => {
+  // 初始化 value 的默认值
+  let initialCalculatedValue = initialValue;
+
+  // 根据id类型确定使用的步长值
+  let currentStep;
+  if (id === 'x' || id === 'y' || id === 'z') { //xyz坐标
+    initialCalculatedValue = Number(CoordinatesTemp[index_LorR][id].toFixed(3));
+    currentStep = positionStep || 0.003; // 使用传入的位置步长，如果没有则使用默认值
+  }
+  else if (id === 'xR' || id === 'yR' || id === 'zR') {// 将PI弧度转换为180角度
+    initialCalculatedValue = Number(THREE.MathUtils.radToDeg(CoordinatesTemp[index_LorR][id]).toFixed(1));
+    currentStep = orientationStep || 15; // 使用传入的姿态步长，如果没有则使用默认值
+  } else {
+    currentStep = step || 0.003; // 默认步长
+  }
+
+  // 使用 useState 来管理基础值和累计变化值
+  const [baseValue, setBaseValue] = useState(initialCalculatedValue);
+  const [accumValue, setAccumValue] = useState(0); // 累计变化值
+  
+  // 显示值 = 基础值 + 累计变化值
+  const displayValue = Number((baseValue + accumValue).toFixed(3));
+
+  // 添加一个状态来跟踪是否处于用户主动控制中
+  const [isUserControlling, setIsUserControlling] = useState(false);
+
+  // 长按相关的状态
+  const [pressing, setPressing] = useState(false);
+  const [pressDirection, setPressDirection] = useState(0); // 1 表示增加，-1 表示减少
+  const longPressTimerRef = useRef(null);
+  const intervalRef = useRef(null);
+  const pressStartTimeRef = useRef(0);
+  const currentStepRef = useRef(currentStep);
+
+  // 当步长参数或CoordinatesTemp发生变化时更新步长值
+  useEffect(() => {
+    if (id === 'x' || id === 'y' || id === 'z') {
+      currentStepRef.current = positionStep || 0.003;
+    } else if (id === 'xR' || id === 'yR' || id === 'zR') {
+      currentStepRef.current = orientationStep || 15;
+    } else {
+      currentStepRef.current = step || 0.003;
+    }
+  }, [positionStep, orientationStep, step, id]);
+
+  // 当 CoordinatesTemp 发生变化时更新基础值，但只在不是用户主动控制时更新
+  useEffect(() => {
+    if (!isUserControlling) {
+      if (id === 'x' || id === 'y' || id === 'z') {
+        setBaseValue(Number(CoordinatesTemp[index_LorR][id].toFixed(3)));
+      } else if (id === 'xR' || id === 'yR' || id === 'zR') {
+        setBaseValue(Number(THREE.MathUtils.radToDeg(CoordinatesTemp[index_LorR][id]).toFixed(1)));
+      }
+      setAccumValue(0); // 重置累计值
+    }
+  }, [CoordinatesTemp, index_LorR, id, isUserControlling]);
+
+  // 用于 ROS 服务调用完成后重新同步数据的计时器
+  const syncTimerRef = useRef(null);
+
+  // 处理长按效果
+  useEffect(() => {
+    if (pressing && pressDirection !== 0) {
+      // 清除之前的定时器
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+
+      // 设置新的定时器，每200ms执行一次
+      intervalRef.current = setInterval(() => {
+        const pressDuration = Date.now() - pressStartTimeRef.current;
+
+        // 根据按下时间调整步长
+        if (pressDuration > 500) {
+          // 长按超过0.5秒，使用2倍步长
+          const acceleratedStep = currentStepRef.current * 2;
+          const delta = pressDirection * acceleratedStep;
+          setAccumValue(prev => Number((prev + delta).toFixed(3)));
+        } else {
+          // 初始使用基本步长
+          const delta = pressDirection * currentStepRef.current;
+          setAccumValue(prev => Number((prev + delta).toFixed(3)));
+        }
+        
+      }, 200); // 每200毫秒累加一次
+
+      // 清理函数
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    }
+  }, [pressing, pressDirection]);
+
+  // 按下按钮时触发
+  const handleButtonDown = (direction) => {
+    // 标记为用户控制状态
+    setIsUserControlling(true);
+
+    // 记录按下时间和方向
+    pressStartTimeRef.current = Date.now();
+    setPressDirection(direction);
+
+    // 设置延时，如果超过200ms没有释放，就认为是长按
+    longPressTimerRef.current = setTimeout(() => {
+      setPressing(true);
+    }, 200);
+
+    // 立即应用一次变化（单击效果）
+    const delta = direction * currentStepRef.current;
+    setAccumValue(prev => Number((prev + delta).toFixed(3)));
+  };
+
+  // 释放按钮时触发
+  const handleButtonUp = () => {
+    // 清除长按计时器
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+
+    // 重置长按状态
+    setPressing(false);
+    setPressDirection(0);
+
+    // 鼠标松开时，调用MoveLSrvCall发送累计的变化
+    if (accumValue !== 0) {
+      MoveLSrvCall(accumValue, id);
+    }
+
+    // 设置定时器恢复同步
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
+    }
+
+    syncTimerRef.current = setTimeout(() => {
+      setIsUserControlling(false);
+      setAccumValue(0); // 重置累计值
+    }, 1000);
+  };
+
+  // 组件卸载时清理所有计时器
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      margin: '6px 0',
+      backgroundColor: isUserControlling ? 'rgba(52, 152, 219, 0.1)' : 'rgba(236, 240, 241, 0.8)', 
+      borderRadius: '6px',
+      padding: '8px',
+      border: isUserControlling ? '1px solid rgba(52, 152, 219, 0.3)' : '1px solid rgba(189, 195, 199, 0.3)',
+      transition: 'all 0.3s ease'
+    }}>
+      {/* 标签和数值显示 */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        marginBottom: '8px'
+      }}>
+        <label style={{
+          fontSize: '12px',
+          fontWeight: '500',
+          color: '#34495e'
+        }}>
+          {name}
+        </label>
+        <span style={{
+          fontSize: '12px',
+          fontWeight: 'bold',
+          color: isUserControlling ? '#3498db' : '#2c3e50',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          padding: '3px 6px',
+          borderRadius: '3px',
+          minWidth: '50px',
+          textAlign: 'center'
+        }}>
+          {displayValue}
+        </span>
+      </div>
+
+      {/* 控制按钮区域 */}
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        justifyContent: 'center',
+        width: '100%'
+      }}>
+        <button
+          onMouseDown={() => handleButtonDown(-1)}
+          onMouseUp={handleButtonUp}
+          onMouseLeave={handleButtonUp}
+          onTouchStart={() => handleButtonDown(-1)}
+          onTouchEnd={handleButtonUp}
+          disabled={rosServiceCalling}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            height: '32px',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: rosServiceCalling ? 'not-allowed' : 'pointer',
+            backgroundColor: rosServiceCalling ? '#95a5a6' : '#e74c3c',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            transition: 'all 0.2s ease',
+            opacity: rosServiceCalling ? 0.6 : 1,
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          <ArrowDownward fontSize="small" />
+        </button>
+
+        <button
+          onMouseDown={() => handleButtonDown(1)}
+          onMouseUp={handleButtonUp}
+          onMouseLeave={handleButtonUp}
+          onTouchStart={() => handleButtonDown(1)}
+          onTouchEnd={handleButtonUp}
+          disabled={rosServiceCalling}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            height: '32px',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: rosServiceCalling ? 'not-allowed' : 'pointer',
+            backgroundColor: rosServiceCalling ? '#95a5a6' : '#27ae60',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            transition: 'all 0.2s ease',
+            opacity: rosServiceCalling ? 0.6 : 1,
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          <ArrowUpward fontSize="small" />
+        </button>
+      </div>
+
+      {/* 范围提示 */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        fontSize: '9px',
+        color: '#95a5a6',
+        width: '100%',
+        marginTop: '6px'
+      }}>
+        <span>最小: {min}</span>
+        <span>最大: {max}</span>
+      </div>
+    </div>
+  );
+};
+
+export default RobotArmTargetSlider;
+</file>
+
+<file path="components/RobotTransparencyUtils.js">
+import * as THREE from 'three';
+import URDFLoader from 'urdf-loader';
+
+// 透明度设置函数
+export const setRobotTransparency = (robot, opacity = 0.5, transparent = true) => {
+  if (!robot) return;
+  
+  robot.traverse((child) => {
+    if (child.isMesh) {
+      // 处理单个材质
+      if (child.material && !Array.isArray(child.material)) {
+        // 确保材质是可以修改的（避免共享材质问题）
+        if (child.material.isSharedMaterial) {
+          child.material = child.material.clone();
+        }
+        
+        child.material.transparent = transparent;
+        child.material.opacity = opacity;
+        child.material.needsUpdate = true;
+        
+        // 设置深度写入（对透明材质很重要）
+        child.material.depthWrite = !transparent;
+      }
+      // 处理材质数组
+      else if (Array.isArray(child.material)) {
+        child.material = child.material.map(mat => {
+          const newMat = mat.clone();
+          newMat.transparent = transparent;
+          newMat.opacity = opacity;
+          newMat.needsUpdate = true;
+          newMat.depthWrite = !transparent;
+          return newMat;
+        });
+      }
+    }
+  });
+};
+
+// 创建透明机器人副本函数
+export const createTransparentRobotCopy = (originalRobot, opacity = 0.4) => {
+  // 深度克隆整个机器人
+  const robotCopy = originalRobot.clone(true);
+  
+  // 为克隆的机器人设置独立的材质
+  robotCopy.traverse((child) => {
+    if (child.isMesh && child.material) {
+      // 克隆材质避免共享
+      child.material = child.material.clone();
+      child.material.transparent = true;
+      child.material.opacity = opacity;
+      child.material.depthWrite = false;
+      child.material.needsUpdate = true;
+    }
+  });
+  
+  return robotCopy;
+};
+
+// 加载双机器人实例
+export const loadDualRobots = (scene, urdfPath, onLoadComplete) => {
+  const loader = new URDFLoader();
+  const robots = {};
+  
+  // 加载第一个机器人（实时值 - 透明）
+  loader.load(urdfPath, (robot1) => {
+    robot1.userData.type = 'realtime';
+    
+    // 等待加载完成后设置透明度
+    setTimeout(() => {
+      setRobotTransparency(robot1, 0.5, true);
+    }, 500);
+    
+    scene.add(robot1);
+    robots.realtime = robot1;
+    
+    // 如果两个机器人都加载完成，调用回调
+    if (robots.planned) {
+      onLoadComplete && onLoadComplete(robots);
+    }
+  });
+  
+  // 加载第二个机器人（规划值 - 正常）
+  loader.load(urdfPath, (robot2) => {
+    robot2.userData.type = 'planned';
+    
+    // 可以稍微偏移位置
+    robot2.position.x = 0.01;
+    
+    scene.add(robot2);
+    robots.planned = robot2;
+    
+    // 如果两个机器人都加载完成，调用回调
+    if (robots.realtime) {
+      onLoadComplete && onLoadComplete(robots);
+    }
+  });
+  
+  return robots;
+};
+
+// 检查机器人当前透明度状态
+export const checkRobotTransparency = (robot) => {
+  let isTransparent = false;
+  let averageOpacity = 1.0;
+  let opacityCount = 0;
+  
+  robot.traverse((child) => {
+    if (child.isMesh && child.material) {
+      if (child.material.transparent) {
+        isTransparent = true;
+      }
+      if (typeof child.material.opacity === 'number') {
+        averageOpacity += child.material.opacity;
+        opacityCount++;
+      }
+    }
+  });
+  
+  if (opacityCount > 0) {
+    averageOpacity /= opacityCount;
+  }
+  
+  return {
+    isTransparent,
+    averageOpacity,
+    opacityCount
+  };
+};
+
+// 批量设置透明度
+export const batchSetTransparency = (robots, opacity, transparent) => {
+  if (Array.isArray(robots)) {
+    robots.forEach(robot => {
+      if (robot) {
+        setRobotTransparency(robot, opacity, transparent);
+      }
+    });
+  } else if (typeof robots === 'object') {
+    Object.values(robots).forEach(robot => {
+      if (robot) {
+        setRobotTransparency(robot, opacity, transparent);
+      }
+    });
+  }
+};
+</file>
+
+<file path="components/RobotViewer.js">
+import React, { useEffect, useRef, useState, useCallback, } from 'react';
+import * as THREE from 'three';
+import URDFLoader from 'urdf-loader';
+import { DragControls } from 'three/examples/jsm/controls/DragControls';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import RobotArmTarget from './RobotArmTarget';
+import ShowCoordinates from './ShowCoordinates';
+import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader';
+import config from "../config";
+import { loadDualRobots, batchSetTransparency } from './RobotTransparencyUtils';
+
+const RobotViewer = ({
+  isInteracting,
+  onInteractionChange,
+  rosServiceCalling,
+  realTimeLeftArmValues,
+  realTimeRightArmValues,
+  plannedLeftArmValues,
+  plannedRightArmValues,
+  onLeftControlChange,
+  onRightControlChange,
+  onLeftMoveJSrvCall,
+  onRightMoveJSrvCall,
+  showRobotArmTarget,
+  R_HandRef,
+  L_HandRef,
+  CoordinatesTemp,
+  setCoordinatesTemp,
+  handleLeftArmMoveLSrvCall,
+  handleRightArmMoveLSrvCall,
+}) => {
+  const canvasRef = useRef(null);
+  const robotRef = useRef(null);
+  const controlsRef = useRef(null);
+  const initialMouseY = useRef(null);
+  const initialMouseX = useRef(null);
+  const selectedObjectRef = useRef(null);
+  const isDragging = useRef(false);
+
+  const [sceneReady, setSceneReady] = useState(false);
+  const [robots, setRobots] = useState({});
+  const lastUpdateRef = useRef(Date.now());
+  const updateInterval = 100;
+  const sceneRef = useRef(null);
+  const cameraRef = useRef(null);
+
+  // 存储关节-链接映射关系和原始材质
+  const jointLinkMappingRef = useRef(new Map());
+  const originalMaterialsRef = useRef(new Map());
+  const warningMaterialsRef = useRef(null);
+
+  const currentChoosedHandRef = useRef(null);
+
+  const isInteractingRef = useRef(isInteracting);
+  useEffect(() => {
+    isInteractingRef.current = isInteracting;
+  }, [isInteracting]);
+
+  const realTimeLeftArmValuesRef = useRef(realTimeLeftArmValues);
+  useEffect(() => {
+    realTimeLeftArmValuesRef.current = realTimeLeftArmValues;
+  }, [realTimeLeftArmValues]);
+
+  const realTimeRightArmValuesRef = useRef(realTimeRightArmValues);
+  useEffect(() => {
+    realTimeRightArmValuesRef.current = realTimeRightArmValues;
+  }, [realTimeRightArmValues]);
+
+  const plannedLeftArmValuesRef = useRef(plannedLeftArmValues);
+  useEffect(() => {
+    plannedLeftArmValuesRef.current = plannedLeftArmValues;
+  }, [plannedLeftArmValues]);
+
+  const plannedRightArmValuesRef = useRef(plannedRightArmValues);
+  useEffect(() => {
+    plannedRightArmValuesRef.current = plannedRightArmValues;
+  }, [plannedRightArmValues]);
+
+  const areJointValuesEqual = useCallback((currentValues, plannedValues) => {
+    return Object.keys(plannedValues).every(
+      (key) => currentValues[key] === plannedValues[key]
+    );
+  }, []);
+
+  // 创建警告材质
+  const createWarningMaterials = useCallback(() => {
+    if (warningMaterialsRef.current) {
+      return warningMaterialsRef.current;
+    }
+    
+    const materials = {
+      warning: new THREE.MeshStandardMaterial({
+        color: 0xFF8C00,  // 橙色警告
+        roughness: 0.4,
+        metalness: 0.5,
+        emissive: 0x441100,
+      }),
+      danger: new THREE.MeshStandardMaterial({
+        color: 0xFF0000,  // 红色危险
+        roughness: 0.4,
+        metalness: 0.5,
+        emissive: 0x440000,
+      })
+    };
+    
+    warningMaterialsRef.current = materials;
+    return materials;
+  }, []);
+
+  // 检查关节是否接近极限值（仅检查机械臂关节）
+  const checkJointLimitStatus = useCallback((jointName, currentValue) => {
+    // 只获取机械臂关节限位配置，不包括手掌关节
+    const armJointLimits = [
+      ...config.armJointLimits.leftArm,
+      ...config.armJointLimits.rightArm,
+    ];
+    
+    // 查找对应关节的限位信息
+    const jointLimit = armJointLimits.find(joint => joint.name === jointName);
+    if (!jointLimit) {
+      // 如果不是机械臂关节（比如手掌关节），返回normal，不改变颜色
+      return 'normal';
+    }
+    
+    const { min, max } = jointLimit;
+    const range = max - min;
+    const warningThreshold = 0.1; // 当接近25%的极限范围时开始警告（更容易测试）
+    const dangerThreshold = 0.01;   // 当接近10%的极限范围时显示危险
+    
+    // 计算距离极限的比例
+    const distanceToMin = Math.abs(currentValue - min) / range;
+    const distanceToMax = Math.abs(currentValue - max) / range;
+    const minDistance = Math.min(distanceToMin, distanceToMax);
+    
+    // console.log(`机械臂关节 ${jointName}: 当前值=${currentValue.toFixed(2)}, 范围=[${min}, ${max}], 最小距离=${minDistance.toFixed(3)}`);
+    
+    if (minDistance <= dangerThreshold) {
+      // console.log(`机械臂关节 ${jointName} 进入危险状态（红色）！`);
+      return 'danger';   // 红色 - 非常接近极限
+    } else if (minDistance <= warningThreshold) {
+      // console.log(`机械臂关节 ${jointName} 进入警告状态（橙色）！`);
+      return 'warning';  // 橙色 - 接近极限
+    }
+    
+    // console.log(`机械臂关节 ${jointName} 处于正常状态，保持原始颜色`);
+    return 'normal';     // 保持原始颜色
+  }, []);
+
+  // 改进的手掌检测函数
+  const isHandRelatedMesh = useCallback((meshChild, linkParent) => {
+    // 明确的手掌链接名称
+    const handLinkNames = ['HAND_R', 'HAND_L'];
+    
+    // 手掌相关的链接名称（包括TCP）
+    const handRelatedLinkNames = ['HAND_R', 'HAND_L', 'TCP_R', 'TCP_L'];
+    
+    // 检查1：链接本身是否是手掌相关链接
+    if (handRelatedLinkNames.includes(linkParent.name)) {
+      return true;
+    }
+    
+    // 检查2：网格对象名称是否包含手掌关键词
+    if (meshChild.name) {
+      const handKeywords = ['HAND', 'hand', 'Hand'];
+      if (handKeywords.some(keyword => meshChild.name.includes(keyword))) {
+        return true;
+      }
+    }
+    
+    // 检查3：向上遍历父节点，查看是否有手掌相关的祖先节点
+    let currentParent = meshChild.parent;
+    let depth = 0;
+    while (currentParent && depth < 5) { // 限制搜索深度
+      if (currentParent.name && handLinkNames.includes(currentParent.name)) {
+        return true;
+      }
+      currentParent = currentParent.parent;
+      depth++;
+    }
+    
+    return false;
+  }, []);
+
+  // 建立关节到链接的映射关系（仅处理机械臂关节，严格排除手掌）
+  const buildJointLinkMapping = useCallback((robot) => {
+    if (!robot) return;
+    
+    // console.log('开始建立机械臂关节-链接映射关系（严格排除手掌）...');
+    
+    // 清空之前的映射
+    jointLinkMappingRef.current.clear();
+    originalMaterialsRef.current.clear();
+    
+    // 获取机械臂关节名称列表
+    const armJointNames = [
+      ...config.armJointLimits.leftArm.map(joint => joint.name),
+      ...config.armJointLimits.rightArm.map(joint => joint.name),
+    ];
+    
+    // 明确的手掌链接名称
+    const handLinkNames = ['HAND_R', 'HAND_L', 'TCP_R', 'TCP_L'];
+    
+    // console.log('机械臂关节列表:', armJointNames);
+    
+    // 遍历机器人的所有关节
+    Object.entries(robot.joints).forEach(([jointName, joint]) => {
+      // 只处理机械臂关节，跳过手掌关节
+      if (armJointNames.includes(jointName)) {
+        // console.log(`处理机械臂关节: ${jointName}`);
+        
+        // 查找与关节直接相关的链接，严格排除手掌部件
+        const relatedLinks = [];
+        
+        // 遍历关节的直接子元素
+        joint.children.forEach((child) => {
+          if (child.isURDFLink) {
+            // 检查是否为手掌相关部件
+            const isHandRelated = handLinkNames.includes(child.name);
+            
+            if (!isHandRelated) {
+              relatedLinks.push(child);
+              // console.log(`机械臂关节 ${jointName} 包含链接: ${child.name}`);
+            } else {
+              // console.log(`排除手掌相关链接: ${child.name} (关节: ${jointName})`);
+            }
+          }
+        });
+        
+        // 也可以通过父子关系更精确地查找，但排除手掌部件
+        robot.traverse((child) => {
+          if (child.isURDFLink && child.parent === joint) {
+            // 检查是否为手掌相关部件
+            const isHandRelated = handLinkNames.includes(child.name);
+            
+            if (!isHandRelated && !relatedLinks.includes(child)) {
+              relatedLinks.push(child);
+              // console.log(`机械臂关节 ${jointName} 通过父子关系包含链接: ${child.name}`);
+            } else if (isHandRelated) {
+              // console.log(`通过父子关系排除手掌链接: ${child.name} (关节: ${jointName})`);
+            }
+          }
+        });
+        
+        if (relatedLinks.length > 0) {
+          jointLinkMappingRef.current.set(jointName, relatedLinks);
+          // console.log(`机械臂关节 ${jointName} 最终映射到 ${relatedLinks.length} 个非手掌链接`);
+          
+          // 保存原始材质（排除手掌部件）
+          relatedLinks.forEach(link => {
+            link.traverse((child) => {
+              if (child.isMesh && child.material) {
+                // 再次确认不是手掌相关的网格
+                const isHandMesh = isHandRelatedMesh(child, link);
+                
+                if (!isHandMesh && !originalMaterialsRef.current.has(child.uuid)) {
+                  // 深拷贝原始材质以避免引用问题
+                  const originalMaterial = child.material.clone();
+                  originalMaterialsRef.current.set(child.uuid, originalMaterial);
+                  // console.log(`保存了机械臂部件网格 ${child.uuid} 的原始材质 (链接: ${link.name})`);
+                } else if (isHandMesh) {
+                  // console.log(`跳过保存手掌网格材质: ${child.uuid} (链接: ${link.name})`);
+                }
+              }
+            });
+          });
+        } else {
+          // console.log(`机械臂关节 ${jointName} 没有找到合适的非手掌链接`);
+        }
+      } else {
+        // 跳过手掌关节，保持手掌原始外观
+        // console.log(`跳过手掌关节: ${jointName}`);
+      }
+    });
+    
+    // console.log(`机械臂关节映射关系建立完成，共处理 ${jointLinkMappingRef.current.size} 个机械臂关节`);
+    
+    // 输出最终的映射关系供调试
+    jointLinkMappingRef.current.forEach((links, jointName) => {
+      const linkNames = links.map(link => link.name);
+      // console.log(`最终映射 - 关节 ${jointName}: [${linkNames.join(', ')}]`);
+    });
+  }, [isHandRelatedMesh]);
+
+  // 更新关节可视化颜色（仅处理机械臂关节）
+  const updateJointVisualColor = useCallback((jointName, status) => {
+    // console.log(`尝试更新机械臂关节 ${jointName} 的颜色状态为: ${status}`);
+    
+    const relatedLinks = jointLinkMappingRef.current.get(jointName);
+    if (!relatedLinks || relatedLinks.length === 0) {
+      // 这里不输出错误信息，因为手掌关节本来就不在映射中
+      return;
+    }
+    
+    // console.log(`为机械臂关节 ${jointName} 应用 ${status} 状态的材质`);
+    
+    // 更新所有相关链接的材质（再次确认排除手掌）
+    relatedLinks.forEach(link => {
+      link.traverse((child) => {
+        if (child.isMesh && child.material) {
+          // 最后一道防线：确保不更新手掌网格的材质
+          const isHandMesh = isHandRelatedMesh(child, link);
+          
+          if (!isHandMesh) {
+            if (status === 'normal') {
+              // 恢复原始材质
+              const originalMaterial = originalMaterialsRef.current.get(child.uuid);
+              if (originalMaterial) {
+                child.material = originalMaterial;
+                // console.log(`恢复机械臂部件网格 ${child.uuid} 的原始材质`);
+              }
+            } else {
+              // 应用警告或危险材质
+              const materials = createWarningMaterials();
+              const targetMaterial = materials[status];
+              if (targetMaterial) {
+                child.material = targetMaterial;
+                // console.log(`应用 ${status} 材质到机械臂部件网格 ${child.uuid}`);
+              }
+            }
+          } else {
+            // console.log(`跳过手掌网格材质更新: ${child.uuid} (链接: ${link.name})`);
+          }
+        }
+      });
+    });
+  }, [createWarningMaterials, isHandRelatedMesh]);
+
+  // 新增：判断planned与realTime是否一致
+  const shouldShowPlannedValues = useCallback(() => {
+    const eqL = Object.keys(plannedLeftArmValuesRef.current).every(
+      key => plannedLeftArmValuesRef.current[key] === realTimeLeftArmValuesRef.current[key]
+    );
+    const eqR = Object.keys(plannedRightArmValuesRef.current).every(
+      key => plannedRightArmValuesRef.current[key] === realTimeRightArmValuesRef.current[key]
+    );
+    return !(eqL && eqR);
+  }, []);
+
+  // 更新机器人关节值
+  const updateRobotJointValues = useCallback((robot, leftArmValues, rightArmValues) => {
+    if (!robot || !robot.joints) return;
+    
+    Object.entries(robot.joints).forEach(([jointName, joint]) => {
+      if (jointName.endsWith('_L') && leftArmValues[jointName] !== undefined) {
+        const angle = leftArmValues[jointName] * (Math.PI / 180);
+        joint.setJointValue(angle);
+      } else if (jointName.endsWith('_R') && rightArmValues[jointName] !== undefined) {
+        const angle = rightArmValues[jointName] * (Math.PI / 180);
+        joint.setJointValue(angle);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const scene = new THREE.Scene();
+    scene.rotateX(-Math.PI / 2);
+    scene.background = new THREE.Color(0xf0f0f0);
+
+    // 辅助线 - 红色线段：X 轴 绿色线段：Y 轴 蓝色线段：Z 轴
+    const axesHelper = new THREE.AxesHelper(10);
+    scene.add(axesHelper);
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(1.5, 0.2, -0.5);
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const light = new THREE.AmbientLight(0x808080);
+    scene.add(light);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 2, 5).normalize();
+    scene.add(directionalLight);
+
+    // 设置拖拽控制对象
+    const objects = [];
+    const loader1 = new ColladaLoader();
+    
+    // 加载右手模型
+    loader1.load('./H1_Pro1/meshes_dae/HAND_R.dae', (Rcollada) => {
+      const model1 = Rcollada.scene;
+      model1.traverse((child) => {
+        if (child.isMesh) {
+          child.material.transparent = true;
+          child.material.opacity = 0.5;
+        }
+      });
+      model1.rotation.y = Math.PI;
+      scene.add(model1);
+      R_HandRef.current = model1;
+      currentChoosedHandRef.current = R_HandRef.current;
+      objects.push(model1);
+      setSceneReady(true);
+    });
+
+    // 加载左手模型
+    loader1.load('./H1_Pro1/meshes_dae/HAND_L.dae', (Lcollada) => {
+      const model = Lcollada.scene;
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.material.transparent = true;
+          child.material.opacity = 0.5;
+        }
+      });
+      scene.add(model);
+      L_HandRef.current = model;
+      objects.push(model);
+      setSceneReady(true);
+    });
+
+    // 相机控制
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0.2, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.25;
+    controls.screenSpacePanning = false;
+    controls.enableZoom = false;
+    controls.maxPolarAngle = Math.PI / 2;
+    controls.minPolarAngle = Math.PI / 2;
+    controls.minAzimuthAngle = -Math.PI;
+    controls.maxAzimuthAngle = Math.PI;
+    controls.update();
+    controlsRef.current = controls;
+
+    // 加载双机器人模型
+    const loadedRobots = loadDualRobots(scene, './H1_Pro1/urdf/H1_Pro1.urdf', (robots) => {
+      console.log('双机器人模型加载完成');
+      setRobots(robots);
+      
+      // 使用实时机器人作为主要引用
+      robotRef.current = robots.realtime;
+      
+      // 等待所有网格加载完成后建立映射关系
+      setTimeout(() => {
+        buildJointLinkMapping(robots.realtime);
+        setSceneReady(true);
+      }, 1000); // 增加延迟确保所有资源加载完成
+    });
+
+    // 保存scene和camera对象到ref中
+    sceneRef.current = scene;
+    cameraRef.current = camera;
+
+    // 渲染循环
+    const animate = () => {
+      requestAnimationFrame(animate);
+      renderer.render(sceneRef.current, cameraRef.current);
+    };
+    animate();
+
+    return () => {
+      if (renderer) renderer.dispose();
+    };
+  }, [buildJointLinkMapping]);
+
+  // 优化更新的频率，包含关节颜色更新逻辑和双机器人更新
+  const updateArmvalues = useCallback(() => {
+    const currentTime = Date.now();
+    if (currentTime - lastUpdateRef.current < updateInterval) {
+      return;
+    }
+    lastUpdateRef.current = currentTime;
+
+    if (sceneReady && robots.realtime && robots.planned && jointLinkMappingRef.current.size > 0) {
+      // 更新实时机器人
+      updateRobotJointValues(robots.realtime, realTimeLeftArmValuesRef.current, realTimeRightArmValuesRef.current);
+      
+      // 更新规划机器人
+      updateRobotJointValues(robots.planned, plannedLeftArmValuesRef.current, plannedRightArmValuesRef.current);
+
+      // 机器人模型关节更新（仅对机械臂关节进行颜色状态检查，手掌保持原始外观）
+      const updateJointValuesWithColorCheck = (robot, values, suffix) => {
+        Object.entries(robot.joints).forEach(([key, joint]) => {
+          if (key.endsWith(suffix) && typeof values[key] === 'number' && !isNaN(values[key])) {
+            const angle = values[key] * (Math.PI / 180);
+            joint.setJointValue(angle);
+            
+            // 只对机械臂关节检查极限状态并更新颜色，手掌关节保持原始颜色
+            const limitStatus = checkJointLimitStatus(key, values[key]);
+            updateJointVisualColor(key, limitStatus);
+          }
+        });
+      };
+
+      // 对实时机器人进行颜色状态检查
+      updateJointValuesWithColorCheck(robots.realtime, realTimeLeftArmValuesRef.current, '_L');
+      updateJointValuesWithColorCheck(robots.realtime, realTimeRightArmValuesRef.current, '_R');
+    }
+  }, [sceneReady, robots, updateRobotJointValues, checkJointLimitStatus, updateJointVisualColor]);
+
+  // 使用 setInterval 控制更新频率
+  useEffect(() => {
+    const interval = setInterval(updateArmvalues, updateInterval);
+    return () => clearInterval(interval);
+  }, [updateArmvalues]);
+
+  // 兼容触摸和鼠标事件的辅助函数
+  function getClientXY(event) {
+    if (event.touches && event.touches.length > 0) {
+      return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+    } else if (event.changedTouches && event.changedTouches.length > 0) {
+      return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+    } else {
+      return { x: event.clientX, y: event.clientY };
+    }
+  }
+
+  // 递归查找父对象，找到name以_L或_R结尾的对象（手臂关节）
+  function findArmJointObject(obj) {
+    let current = obj;
+    while (current) {
+      if (current.name && (current.name.endsWith('_L') || current.name.endsWith('_R'))) {
+        return current;
+      }
+      current = current.parent;
+    }
+    return null;
+  }
+
+  const onMouseDown = useCallback((event) => {
+    if (isDragging.current || rosServiceCalling) return;
+    isDragging.current = true;
+    const { x, y } = getClientXY(event);
+    const rect = canvasRef.current.getBoundingClientRect();
+    initialMouseY.current = y;
+    initialMouseX.current = x;
+    const mouse = new THREE.Vector2(
+      ((x - rect.left) / rect.width) * 2 - 1,
+      -((y - rect.top) / rect.height) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, cameraRef.current);
+    const intersects = raycaster.intersectObjects(sceneRef.current.children, true);
+    if (intersects.length > 0) {
+      const armJointObj = findArmJointObject(intersects[0].object);
+      if (armJointObj) {
+        selectedObjectRef.current = armJointObj;
+        controlsRef.current.enabled = false;
+      } else {
+        selectedObjectRef.current = null;
+        controlsRef.current.enabled = true;
+      }
+    } else {
+      selectedObjectRef.current = null;
+      controlsRef.current.enabled = true;
+    }
+    if (event.touches) event.preventDefault();
+  });
+
+  const onMouseMove = useCallback((event) => {
+    if (isDragging.current && selectedObjectRef.current && !rosServiceCalling) {
+      const { x, y } = getClientXY(event);
+      const deltaY = initialMouseY.current - y;
+      const deltaX = (x - initialMouseX.current) / 10;
+      const name = selectedObjectRef.current.name;
+      let jointValueChange = name === 'Neck_Y' ? deltaY : deltaX;
+      const { newValues, isLeftArm, isRightArm } = getUpdatedJointValues(name, jointValueChange);
+      if (isLeftArm) {
+        onLeftControlChange(name, newValues);
+      } else if (isRightArm) {
+        onRightControlChange(name, newValues);
+      } else {
+        return;
+      }
+      initialMouseY.current = y;
+      initialMouseX.current = x;
+    }
+    if (event.touches) event.preventDefault();
+  });
+
+  // 提取为一个函数，判断并更新关节值
+  const getUpdatedJointValues = (name, jointValueChange) => {
+    let newValues = 0;
+    const isLeftArm = name.endsWith('_L');
+    const isRightArm = name.endsWith('_R');
+
+    if (isLeftArm) {
+      newValues = plannedLeftArmValuesRef.current[name] + jointValueChange;
+      newValues = validateJointValue(newValues);
+      plannedLeftArmValuesRef.current[name] = newValues;
+    } else if (isRightArm) {
+      newValues = plannedRightArmValuesRef.current[name] + jointValueChange;
+      newValues = validateJointValue(newValues);
+      plannedRightArmValuesRef.current[name] = newValues;
+    }
+
+    return { newValues, isLeftArm, isRightArm };
+  };
+
+  // 验证关节值是否有效
+  const validateJointValue = (value) => {
+    return isNaN(value) ? 0 : value;
+  };
+
+  const onMouseUp = useCallback((event) => {
+    isDragging.current = false;
+    if (selectedObjectRef.current) {
+      const selectedName = selectedObjectRef.current.name;
+      if (
+        selectedName.endsWith('_L') && !areJointValuesEqual(realTimeLeftArmValuesRef.current, plannedLeftArmValuesRef.current)
+      ) {
+        onLeftMoveJSrvCall(plannedLeftArmValuesRef.current);
+      }
+      if (
+        selectedName.endsWith('_R') && !areJointValuesEqual(realTimeRightArmValuesRef.current, plannedRightArmValuesRef.current)
+      ) {
+        onRightMoveJSrvCall(plannedRightArmValuesRef.current);
+      }
+    }
+    onInteractionChange(false);
+    controlsRef.current.enabled = true;
+    selectedObjectRef.current = null;
+    if (event.touches || event.changedTouches) event.preventDefault();
+  });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    // 鼠标事件
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('mouseleave', onMouseUp);
+    // 触摸事件
+    canvas.addEventListener('touchstart', onMouseDown, { passive: false });
+    canvas.addEventListener('touchmove', onMouseMove, { passive: false });
+    canvas.addEventListener('touchend', onMouseUp, { passive: false });
+    canvas.addEventListener('touchcancel', onMouseUp, { passive: false });
+    return () => {
+      canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('mousemove', onMouseMove);
+      canvas.removeEventListener('mouseup', onMouseUp);
+      canvas.removeEventListener('mouseleave', onMouseUp);
+      canvas.removeEventListener('touchstart', onMouseDown);
+      canvas.removeEventListener('touchmove', onMouseMove);
+      canvas.removeEventListener('touchend', onMouseUp);
+      canvas.removeEventListener('touchcancel', onMouseUp);
+    };
+  }, [onMouseDown, onMouseMove, onMouseUp]);
+
+  return (
+    <div>
+      <canvas ref={canvasRef} />
+    </div>
+  );
+};
+
+export default RobotViewer;
+</file>
+
+<file path="components/ShowCoordinates.js">
+import React, { useState, useEffect } from 'react';
+
+/*
+此js文件用于显示生成的模型(L_HandRef,R_HandRef)坐标 
+*/
+
+const ShowCoordinates = ({ Taro }) => {
+  const [aaaa, setAaaa] = useState(true); // 未来的超出手臂执行范围的判断
+  const [errorOne, setErrorOne] = useState("");
+  const distance = (point) => Math.sqrt(point.x * point.x + point.y * point.y + point.z * point.z); //标点 (x, y, z) 的欧几里得距离
+  useEffect(() => {
+    const rightHandDistance = distance(Taro.Right);
+    const leftHandDistance = distance(Taro.Left);
+
+    if (rightHandDistance > 0.539 || leftHandDistance > 0.539) { //TORSO（躯干） 到 WRIST（手腕） 目：
+
+      setAaaa(false);
+      setErrorOne(
+      rightHandDistance > 0.539 && leftHandDistance > 0.539
+        ? 'Both Hand'
+        : rightHandDistance > 0.539
+        ? 'Right Hand'
+        : 'Left Hand'
+      );
+    } else {
+      setAaaa(true);
+    }
+  }, [Taro]); // 只有 Taro 变化时才触发更新
+
+
+
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        padding: '10px',
+        top: '5%',
+        left: '23%',
+        //backgroundColor: '#fff'
+        //borderRadius: '5px',
+        //boxShadow: '0 0 10px rgba(0, 0, 0, 0.2)',
+        textAlign: 'center',
+        marginTop: '10px',
+        //opacity: 0.8, 
+
+      }}
+    >
+      {aaaa ? (
+        <>
+          <h4>球体位置</h4>
+          <p>
+            <strong>Right Hand:</strong> x: {Taro.Right.x.toFixed(3)}, y: {Taro.Right.y.toFixed(3)}, z: {Taro.Right.z.toFixed(3)} ,
+            {/* <br /> */}
+            {/* xR: {Taro.Right.xR.toFixed(3)}, yR: {Taro.Right.yR.toFixed(3)}, zR: {Taro.Right.zR.toFixed(3)} */}
+          </p>
+          <p>
+            <strong>Left Hand:</strong> x: {Taro.Left.x.toFixed(3)}, y: {Taro.Left.y.toFixed(3)}, z: {Taro.Left.z.toFixed(3)} ,
+            {/* xR: {Taro.Left.xR.toFixed(3)}, yR: {Taro.Left.yR.toFixed(3)}, zR: {Taro.Left.zR.toFixed(3)} */}
+          </p>
+        </>
+      ) : (
+        <p>注意<br/>{errorOne}超出能达到手臂范围，终端无法执行</p>
+      )}
+    </div>
+  );
+};
+
+
+export default ShowCoordinates;
+</file>
+
+<file path="components/Teacher.js">
+import React, { useEffect, useRef, useState, useCallback, } from 'react';
+
+const Teacher = (
+) => {
+
+  return (
+    <div>
+      <div style={{ position: 'absolute', top: '5%', left: '31%', zIndex: 10, transform: 'translateX(-50%)' }}>
+        <p>Teacher Model is on！</p>
+
+      </div>
+    </div >
+  );
+}
+
+export default Teacher;
+</file>
+
+<file path="App.css">
+/* App.css */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.upper-panel {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  background-color: #f0f0f0;
+}
+
+.lower-panel {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.control-panel {
+  flex: 1;
+}
+
+.finger-controls,
+.head-control {
+  margin-bottom: 20px;
+}
+
+.slider {
+  width: 100%;
+}
+
+.robot-viewer {
+  flex: 2;
+  background-color: #e0e0e0;
+}
+
+h3 {
+  font-size: 16px;
+}
+</file>
+
+<file path="App.js">
+// App.js - 统一风格的机器人控制界面
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import ROSLIB from "roslib";
+import { Dialog, DialogActions, DialogContent, DialogTitle, Button, Typography } from '@mui/material';
+import HandControl from './components/HandControl';
+import RobotViewer from './components/RobotViewer';
+import HandViewer from './components/HandViewer';
+import ArmControl from './components/ArmControl';
+import ActionButtons from './components/ActionButtons';
+import RobotArmTarget from './components/RobotArmTarget';
+import Teacher from './components/Teacher';
+import config from "./config";
+import { Quaternion, Euler } from 'three';
+import * as THREE from 'three';
+
+// 状态指示器组件
+const StatusIndicator = ({ status }) => {
+  const getStatusColor = () => {
+    switch (status) {
+      case 'connected':
+      case 'normal':
+        return '#27ae60'; // 绿色
+      case 'disconnected':
+      case 'error':
+      case 'detected':
+        return '#e74c3c'; // 红色
+      case 'warning':
+        return '#f39c12'; // 橙色
+      case 'info':
+        return '#3498db'; // 蓝色
+      case 'none':
+      default:
+        return '#95a5a6'; // 灰色
+    }
+  };
+
+  return (
+    <div style={{
+      width: '12px',
+      height: '12px',
+      borderRadius: '50%',
+      backgroundColor: getStatusColor(),
+      transition: 'background-color 0.3s ease',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+    }} />
+  );
+};
+
+// 状态文本组件
+const StatusText = ({ text, status }) => {
+  return (
+    <span style={{
+      fontSize: '14px',
+      fontWeight: 500,
+      color: '#2c3e50',
+      transition: 'color 0.3s ease'
+    }}>
+      {text}
+    </span>
+  );
+};
+
+// 状态面板组件
+const StatusPanel = ({ isConnected, errorMessage, robotState, robotStateInfo }) => {
+  // 根据机器人状态映射到显示文本和状态类型
+  const getRobotStateDisplay = () => {
+    switch (robotState) {
+      case 0: return { text: "未初始化", status: "none" };
+      case 1: return { text: "配置中", status: "warning" };
+      case 2: return { text: "已开启", status: "info" };
+      case 3: return { text: "启动中", status: "warning" };
+      case 4: return { text: "初始化中", status: "warning" };
+      case 5: return { text: "运行中", status: "normal" };
+      case 6: return { text: "暂停", status: "warning" };
+      case 7: return { text: "软急停", status: "error" };
+      case 8: return { text: "关机", status: "none" };
+      case 9: return { text: "错误", status: "error" };
+      default: return { text: robotStateInfo || "未知状态", status: "none" };
+    }
+  };
+
+  const robotStateDisplay = getRobotStateDisplay();
+
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      width: '100%',
+      height: '60px',
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      backdropFilter: 'blur(10px)',
+      boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      padding: '0 20px',
+      boxSizing: 'border-box',
+      zIndex: 1000,
+      borderTop: '1px solid rgba(0, 0, 0, 0.1)'
+    }}>
+      {/* ROSBridge连接状态 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        flex: 1,
+        justifyContent: 'center'
+      }}>
+        <StatusIndicator status={isConnected ? 'connected' : 'disconnected'} />
+        <StatusText 
+          text={isConnected ? 'ROSBridge已连接' : (errorMessage || 'ROSBridge未连接')} 
+          status={isConnected ? 'connected' : 'disconnected'} 
+        />
+      </div>
+
+      {/* 机器人系统状态 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        flex: 1,
+        justifyContent: 'center'
+      }}>
+        <StatusIndicator status={robotStateDisplay.status} />
+        <StatusText text={robotStateDisplay.text} status={robotStateDisplay.status} />
+      </div>
+
+      {/* 奇点状态（预留） */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        flex: 1,
+        justifyContent: 'center'
+      }}>
+        <StatusIndicator status="none" />
+        <StatusText text="奇点" status="none" />
+      </div>
+    </div>
+  );
+};
+
+// 预设动作按钮组件 - 统一风格的设计
+const PresetActionButton = ({ 
+  index, 
+  onClick, 
+  onPress, 
+  onRelease,
+  isActive, 
+  disabled,
+  children 
+}) => {
+  return (
+    <button
+      onClick={onClick}
+      onMouseDown={onPress}
+      onMouseUp={onRelease}
+      onMouseLeave={onRelease}
+      onTouchStart={onPress}
+      onTouchEnd={onRelease}
+      disabled={disabled}
+      style={{
+        width: '80px',
+        height: '80px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        border: 'none',
+        borderRadius: '10px',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        backgroundColor: isActive ? '#27ae60' : '#3498db',
+        color: 'white',
+        transition: 'all 0.3s ease',
+        opacity: disabled ? 0.6 : 1,
+        boxShadow: isActive ? '0 4px 8px rgba(39, 174, 96, 0.3)' : '0 2px 4px rgba(52, 152, 219, 0.2)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '4px'
+      }}
+    >
+      {children}
+    </button>
+  );
+};
+
+// Home按钮组件 - 复用PresetActionButton的样式
+const HomeButton = ({ 
+  onClick, 
+  disabled,
+  rosServiceCalling 
+}) => {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled || rosServiceCalling}
+      style={{
+        width: '80px',
+        height: '80px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        border: 'none',
+        borderRadius: '10px',
+        cursor: (disabled || rosServiceCalling) ? 'not-allowed' : 'pointer',
+        backgroundColor: '#27ae60', // 使用绿色表示home状态
+        color: 'white',
+        transition: 'all 0.3s ease',
+        opacity: (disabled || rosServiceCalling) ? 0.6 : 1,
+        boxShadow: '0 2px 4px rgba(39, 174, 96, 0.2)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '4px'
+      }}
+    >
+      <span style={{ fontSize: '16px' }}>🏠</span>
+      <span>Home</span>
+    </button>
+  );
+};
+
+// 预设动作控制面板组件
+const PresetActionPanel = ({ 
+  actions, 
+  rosServiceCalling, 
+  onPresetAction, 
+  onPresetActionPress, 
+  onPresetActionRelease 
+}) => {
+  const handleActionClick = (actionId) => {
+    if (!rosServiceCalling) {
+      onPresetAction(actionId);
+    }
+  };
+
+  return (
+    <div style={{
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderRadius: '10px',
+      padding: '20px',
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+      width: '100%',
+      maxWidth: '400px',
+    }}>
+      {/* 统一的标题栏 - 与其他控制面板保持一致 */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '20px',
+        borderBottom: '2px solid #3498db',
+        paddingBottom: '10px'
+      }}>
+        <h3 style={{
+          margin: 0,
+          color: '#2c3e50',
+          fontSize: '18px',
+          fontWeight: 'bold'
+        }}>
+          预设动作控制
+        </h3>
+        <div style={{
+          width: '12px',
+          height: '12px',
+          borderRadius: '50%',
+          backgroundColor: rosServiceCalling ? '#e74c3c' : '#27ae60'
+        }} />
+      </div>
+
+      {/* 预设动作按钮网格 */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: '12px',
+        marginBottom: '20px'
+      }}>
+        {actions.map((action) => (
+          <PresetActionButton
+            key={action.id}
+            index={action.id}
+            onClick={() => handleActionClick(action.id)}
+            onPress={() => onPresetActionPress(action.id)}
+            onRelease={onPresetActionRelease}
+            disabled={rosServiceCalling}
+            isActive={false}
+          >
+            <span style={{ fontSize: '14px' }}>{action.name}</span>
+            <span style={{ fontSize: '10px', opacity: 0.8 }}>{action.description}</span>
+          </PresetActionButton>
+        ))}
+      </div>
+
+      {/* 状态提示区域 */}
+      <div style={{
+        marginTop: '15px',
+        textAlign: 'center',
+        fontSize: '12px',
+        color: '#7f8c8d'
+      }}>
+        {rosServiceCalling && '正在执行预设动作...'}
+        {!rosServiceCalling && '点击按钮执行预设动作'}
+      </div>
+
+      {/* 安全提示区域 */}
+      <div style={{
+        marginTop: '12px',
+        padding: '8px 12px',
+        backgroundColor: 'rgba(241, 196, 15, 0.1)',
+        border: '1px solid rgba(241, 196, 15, 0.3)',
+        borderRadius: '6px',
+        fontSize: '12px',
+        color: '#f39c12',
+        textAlign: 'center'
+      }}>
+        ⚠️ 执行预设动作前请确认机器人周围安全
+      </div>
+    </div>
+  );
+};
+
+// 手掌滑块控制组件 - 提供精确的手指关节控制
+const HandSliderControl = ({ 
+  isInteracting, 
+  onInteractionChange, 
+  rosServiceCalling, 
+  realTimeHandValues, 
+  plannedHandValues, 
+  type, 
+  onControlChange, 
+  onHandSrvCall 
+}) => {
+  // 添加错误处理状态
+  const [error, setError] = useState("");
+  const [openDialog, setOpenDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  // 从config中获取手掌关节配置并映射为组件需要的格式
+  const getHandJointConfig = () => {
+    const handLimits = type === 'L' ? config.handJointLimits.leftHand : config.handJointLimits.rightHand;
+    const jointLabels = {
+      'thumb_IP': '拇指指间关节',
+      'thumb_CMC': '拇指掌指关节', 
+      'index_MCP': '食指掌指关节',
+      'middle_MCP': '中指掌指关节',
+      'ring_MCP': '无名指掌指关节',
+      'little_MCP': '小指掌指关节'
+    };
+    
+    const jointConfig = {};
+    handLimits.forEach(joint => {
+      jointConfig[joint.name] = {
+        label: jointLabels[joint.name] || joint.name,
+        min: joint.min,
+        max: joint.max
+      };
+    });
+    
+    return jointConfig;
+  };
+  
+  const jointConfig = getHandJointConfig();
+
+  // 输入验证函数
+  const validateInput = (value, jointName, minValue, maxValue) => {
+    // 空值检查
+    if (value === '' || value === null || value === undefined) {
+      return {
+        isValid: false,
+        error: "请输入一个数值。",
+        type: "empty"
+      };
+    }
+    
+    const newValue = parseFloat(value);
+    
+    // 数值格式检查
+    if (isNaN(newValue)) {
+      return {
+        isValid: false,
+        error: "请输入有效的数字，不能包含字母或特殊字符。",
+        type: "format"
+      };
+    }
+    
+    // 范围检查
+    if (newValue < minValue || newValue > maxValue) {
+      return {
+        isValid: false,
+        error: `${jointName}的值超出允许范围。请输入 ${minValue.toFixed(1)} 到 ${maxValue.toFixed(1)} 之间的值。`,
+        type: "range"
+      };
+    }
+    
+    // 精度检查（可选，限制小数位数）
+    // 对于箭头操作产生的数值，先进行四舍五入到一位小数
+    const roundedValue = Math.round(newValue * 10) / 10;
+    const decimalPlaces = (roundedValue.toString().split('.')[1] || '').length;
+    if (decimalPlaces > 1) {
+      return {
+        isValid: false,
+        error: "请输入最多一位小数的数值。",
+        type: "precision"
+      };
+    }
+    
+    // 使用四舍五入后的值
+    const finalValue = roundedValue;
+    
+    return {
+      isValid: true,
+      value: finalValue,
+      error: "",
+      type: "valid"
+    };
+  };
+
+  // 显示错误弹窗
+  const showErrorDialog = (errorMessage) => {
+    setError(errorMessage);
+    setOpenDialog(true);
+  };
+
+  // 关闭错误弹窗
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  // 显示成功提示
+  const showSuccessMessage = (message) => {
+    setSuccessMessage(message);
+    setShowSuccess(true);
+    // 3秒后自动隐藏
+    setTimeout(() => {
+      setShowSuccess(false);
+      setSuccessMessage("");
+    }, 3000);
+  };
+
+  // 输入框值变更处理
+  const handleInputChange = (event, jointName, config) => {
+    const validation = validateInput(event.target.value, jointName, config.min, config.max);
+    
+    if (validation.isValid) {
+      onControlChange(jointName, validation.value);
+      if (!isInteracting) {
+        onInteractionChange(true);
+      }
+      // 显示成功提示
+      showSuccessMessage(`${jointName}已设置为 ${validation.value.toFixed(1)}°`);
+    } else {
+      showErrorDialog(validation.error);
+    }
+  };
+
+  // Enter键确认处理
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !rosServiceCalling) {
+      executeHandMovement();
+    }
+  };
+
+  const handleSliderChange = (jointName, value) => {
+    onControlChange(jointName, parseFloat(value));
+    if (!isInteracting) {
+      onInteractionChange(true);
+    }
+  };
+
+  const executeHandMovement = () => {
+    onHandSrvCall(plannedHandValues);
+    onInteractionChange(false);
+  };
+
+  const resetToRealTimeValues = () => {
+    Object.keys(jointConfig).forEach(jointName => {
+      onControlChange(jointName, realTimeHandValues[jointName] || 0);
+    });
+    onInteractionChange(false);
+  };
+
+  return (
+    <div style={{
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderRadius: '10px',
+      padding: '20px',
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+      width: '100%',
+      maxWidth: '400px',
+    }}>
+      <style>
+        {`
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}
+      </style>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '20px',
+        borderBottom: '2px solid #3498db',
+        paddingBottom: '10px'
+      }}>
+        <h3 style={{
+          margin: 0,
+          color: '#2c3e50',
+          fontSize: '18px',
+          fontWeight: 'bold'
+        }}>
+          {type === 'L' ? '左手' : '右手'}控制面板
+        </h3>
+        <div style={{
+          width: '12px',
+          height: '12px',
+          borderRadius: '50%',
+          backgroundColor: isInteracting ? '#e74c3c' : '#27ae60'
+        }} />
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        {Object.entries(jointConfig).map(([jointName, config]) => {
+          const realValue = realTimeHandValues[jointName] || 0;
+          const plannedValue = plannedHandValues[jointName] || 0;
+          
+          return (
+            <div key={jointName} style={{ marginBottom: '15px' }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '5px'
+              }}>
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#34495e'
+                }}>
+                  {config.label}
+                </label>
+                <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
+                  <span style={{ marginRight: '10px' }}>
+                    实际: {realValue.toFixed(1)}°
+                  </span>
+                  <span style={{ color: isInteracting ? '#e74c3c' : '#27ae60' }}>
+                    计划: {plannedValue.toFixed(1)}°
+                  </span>
+                </div>
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                marginBottom: '5px'
+              }}>
+                <input
+                  type="range"
+                  min={config.min}
+                  max={config.max}
+                  step="0.5"
+                  value={plannedValue}
+                  onChange={(e) => handleSliderChange(jointName, e.target.value)}
+                  disabled={rosServiceCalling}
+                  style={{
+                    flex: 1,
+                    height: '6px',
+                    borderRadius: '3px',
+                    outline: 'none',
+                    cursor: rosServiceCalling ? 'not-allowed' : 'pointer',
+                    background: `linear-gradient(to right, 
+                      #3498db 0%, 
+                      #3498db ${((plannedValue - config.min) / (config.max - config.min)) * 100}%, 
+                      #ecf0f1 ${((plannedValue - config.min) / (config.max - config.min)) * 100}%, 
+                      #ecf0f1 100%)`
+                  }}
+                />
+                <input
+                  type="number"
+                  min={config.min}
+                  max={config.max}
+                  step="0.1"
+                  value={plannedValue.toFixed(1)}
+                  onChange={(e) => handleInputChange(e, jointName, config)}
+                  onKeyDown={handleKeyDown}
+                  disabled={rosServiceCalling}
+                  style={{
+                    width: '60px',
+                    height: '30px',
+                    padding: '4px 6px',
+                    fontSize: '0.875rem',
+                    border: '1px solid rgba(0, 0, 0, 0.3)',
+                    borderRadius: '4px',
+                    textAlign: 'center',
+                    backgroundColor: 'white',
+                    cursor: rosServiceCalling ? 'not-allowed' : 'text'
+                  }}
+                />
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '10px',
+                color: '#95a5a6',
+                marginTop: '2px'
+              }}>
+                <span>{config.min}°</span>
+                <span>{config.max}°</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        justifyContent: 'center'
+      }}>
+        <button
+          onClick={executeHandMovement}
+          disabled={!isInteracting || rosServiceCalling}
+          style={{
+            flex: 1,
+            padding: '12px 20px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: (!isInteracting || rosServiceCalling) ? 'not-allowed' : 'pointer',
+            backgroundColor: (!isInteracting || rosServiceCalling) ? '#95a5a6' : '#27ae60',
+            color: 'white',
+            transition: 'all 0.3s ease',
+            opacity: (!isInteracting || rosServiceCalling) ? 0.6 : 1
+          }}
+        >
+          {rosServiceCalling ? '执行中...' : '执行运动'}
+        </button>
+
+        <button
+          onClick={resetToRealTimeValues}
+          disabled={rosServiceCalling}
+          style={{
+            flex: 1,
+            padding: '12px 20px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: rosServiceCalling ? 'not-allowed' : 'pointer',
+            backgroundColor: rosServiceCalling ? '#95a5a6' : '#e74c3c',
+            color: 'white',
+            transition: 'all 0.3s ease',
+            opacity: rosServiceCalling ? 0.6 : 1
+          }}
+        >
+          重置
+        </button>
+      </div>
+
+      {/* 成功提示 */}
+      {showSuccess && (
+        <div style={{
+          marginTop: '10px',
+          padding: '8px 12px',
+          backgroundColor: '#d4edda',
+          border: '1px solid #c3e6cb',
+          borderRadius: '4px',
+          textAlign: 'center',
+          fontSize: '12px',
+          color: '#155724',
+          animation: 'fadeIn 0.3s ease-in'
+        }}>
+          ✅ {successMessage}
+        </div>
+      )}
+
+      <div style={{
+        marginTop: '15px',
+        textAlign: 'center',
+        fontSize: '12px',
+        color: '#7f8c8d'
+      }}>
+        {rosServiceCalling && '正在与机器人通信...'}
+        {isInteracting && !rosServiceCalling && '已修改参数，点击执行运动'}
+        {!isInteracting && !rosServiceCalling && '等待控制指令'}
+      </div>
+
+      {/* 错误提示弹窗 */}
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle style={{
+          backgroundColor: '#f8d7da',
+          color: '#721c24',
+          borderBottom: '1px solid #f5c6cb'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+            输入验证错误
+          </div>
+        </DialogTitle>
+        <DialogContent style={{ padding: '20px' }}>
+          <Typography variant="body1" style={{ 
+            color: '#721c24',
+            lineHeight: '1.5',
+            marginBottom: '10px'
+          }}>
+            {error}
+          </Typography>
+          <Typography variant="body2" style={{ 
+            color: '#6c757d',
+            fontSize: '12px',
+            fontStyle: 'italic'
+          }}>
+            提示：您可以继续使用滑块控制，或重新输入有效的数值。
+          </Typography>
+        </DialogContent>
+        <DialogActions style={{ padding: '16px 20px' }}>
+          <Button 
+            onClick={handleCloseDialog} 
+            variant="contained"
+            style={{
+              backgroundColor: '#721c24',
+              color: 'white',
+              '&:hover': {
+                backgroundColor: '#5a1a1a'
+              }
+            }}
+          >
+            我知道了
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  );
+};
+
+// 机械臂滑块控制组件 - 与手掌控制保持统一的设计风格
+const ArmSliderControl = ({ 
+  isInteracting, 
+  onInteractionChange, 
+  rosServiceCalling, 
+  realTimeArmValues, 
+  plannedArmValues, 
+  type, 
+  onControlChange, 
+  onMoveJSrvCall,
+  isOnTeacherMode,
+  // 新增：另一边手臂的状态和回调函数
+  realTimeOtherArmValues = {},
+  plannedOtherArmValues = {},
+  onOtherMoveJSrvCall = null
+}) => {
+  
+  // 从config中获取机械臂关节配置并映射为组件需要的格式
+  const getArmJointConfig = () => {
+    const armLimits = type === 'L' ? config.armJointLimits.leftArm : config.armJointLimits.rightArm;
+    const jointLabels = {
+      'Shoulder_Y': '肩部Y轴旋转',
+      'Shoulder_X': '肩部X轴旋转',
+      'Shoulder_Z': '肩部Z轴旋转',
+      'Elbow': '肘关节',
+      'Wrist_Z': '腕部Z轴旋转',
+      'Wrist_Y': '腕部Y轴旋转',
+      'Wrist_X': '腕部X轴旋转'
+    };
+    const jointDescriptions = {
+      'Shoulder_Y': '肩部左右摆动',
+      'Shoulder_X': '肩部前后摆动',
+      'Shoulder_Z': '肩部扭转',
+      'Elbow': '肘部弯曲伸展',
+      'Wrist_Z': '手腕扭转',
+      'Wrist_Y': '手腕上下摆动',
+      'Wrist_X': '手腕左右摆动'
+    };
+    
+    const jointConfig = {};
+    armLimits.forEach(joint => {
+      const baseName = joint.name.replace(/_L$|_R$/, ''); // 移除_L或_R后缀
+      jointConfig[joint.name] = {
+        label: jointLabels[baseName] || joint.name,
+        min: joint.min,
+        max: joint.max,
+        description: jointDescriptions[baseName] || ''
+      };
+    });
+    
+    return jointConfig;
+  };
+  
+  const jointConfig = getArmJointConfig();
+
+  const handleSliderChange = (jointName, value) => {
+    onControlChange(jointName, parseFloat(value));
+    if (!isInteracting) {
+      onInteractionChange(true);
+    }
+  };
+
+  const executeArmMovement = () => {
+    // 检查当前手臂是否有参数变化
+    const currentArmHasChanges = shouldShowPlannedValues();
+    // 检查另一边手臂是否有参数变化
+    const otherArmHasChanges = shouldShowOtherPlannedValues();
+    
+    // 如果当前手臂有变化，执行当前手臂的运动
+    if (currentArmHasChanges) {
+      onMoveJSrvCall(plannedArmValues);
+    }
+    
+    // 如果另一边手臂有变化且回调函数存在，执行另一边手臂的运动
+    if (otherArmHasChanges && onOtherMoveJSrvCall) {
+      onOtherMoveJSrvCall(plannedOtherArmValues);
+    }
+    
+    // 重置交互状态
+    onInteractionChange(false);
+  };
+
+  const resetToRealTimeValues = () => {
+    Object.keys(jointConfig).forEach(jointName => {
+      onControlChange(jointName, realTimeArmValues[jointName] || 0);
+    });
+    onInteractionChange(false);
+  };
+
+  const getJointPercentage = (jointName, value) => {
+    const config = jointConfig[jointName];
+    if (!config) return 0;
+    return ((value - config.min) / (config.max - config.min)) * 100;
+  };
+
+  // 新增：判断planned与realTime是否一致
+  const shouldShowPlannedValues = () => {
+    return Object.keys(plannedArmValues).some(
+      key => plannedArmValues[key] !== realTimeArmValues[key]
+    );
+  };
+
+  // 新增：判断另一边手臂的planned与realTime是否一致
+  const shouldShowOtherPlannedValues = () => {
+    return Object.keys(plannedOtherArmValues).some(
+      key => plannedOtherArmValues[key] !== realTimeOtherArmValues[key]
+    );
+  };
+
+  // 新增：判断是否有任何手臂需要执行运动
+  const shouldEnableExecuteButton = () => {
+    const currentArmHasChanges = shouldShowPlannedValues();
+    const otherArmHasChanges = shouldShowOtherPlannedValues();
+    return currentArmHasChanges || otherArmHasChanges;
+  };
+
+  return (
+    <div style={{
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderRadius: '10px',
+      padding: '20px',
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+      width: '100%',
+      maxWidth: '400px',
+    }}>
+      {/* 统一的标题栏 - 与手掌控制面板保持一致 */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '20px',
+        borderBottom: '2px solid #3498db',
+        paddingBottom: '10px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h3 style={{
+            margin: 0,
+            color: '#2c3e50',
+            fontSize: '18px',
+            fontWeight: 'bold'
+          }}>
+            {type === 'L' ? '左臂' : '右臂'}控制面板
+          </h3>
+          {isOnTeacherMode && (
+            <div style={{
+              backgroundColor: '#f39c12',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              示教模式
+            </div>
+          )}
+        </div>
+        <div style={{
+          width: '12px',
+          height: '12px',
+          borderRadius: '50%',
+          backgroundColor: isInteracting ? '#e74c3c' : '#27ae60'
+        }} />
+      </div>
+
+      {/* 关节控制区域 - 移除滚动条，使用固定高度 */}
+      <div style={{ marginBottom: '20px' }}>
+        {Object.entries(jointConfig).map(([jointName, config]) => {
+          const realValue = realTimeArmValues[jointName] || 0;
+          const plannedValue = plannedArmValues[jointName] || 0;
+          
+          return (
+            <div key={jointName} style={{ marginBottom: '15px' }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '5px'
+              }}>
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#34495e'
+                }}>
+                  {config.label}
+                </label>
+                
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#7f8c8d'
+                }}>
+                  <span style={{ marginRight: '10px' }}>
+                    实际: {realValue.toFixed(1)}°
+                  </span>
+                  <span style={{ color: isInteracting ? '#e74c3c' : '#27ae60' }}>
+                    计划: {plannedValue.toFixed(1)}°
+                  </span>
+                </div>
+              </div>
+              
+              <input
+                type="range"
+                min={config.min}
+                max={config.max}
+                step="0.5"
+                value={plannedValue}
+                onChange={(e) => handleSliderChange(jointName, e.target.value)}
+                disabled={rosServiceCalling || isOnTeacherMode}
+                style={{
+                  width: '100%',
+                  height: '6px',
+                  borderRadius: '3px',
+                  outline: 'none',
+                  cursor: (rosServiceCalling || isOnTeacherMode) ? 'not-allowed' : 'pointer',
+                  background: `linear-gradient(to right, 
+                    #3498db 0%, 
+                    #3498db ${getJointPercentage(jointName, plannedValue)}%, 
+                    #ecf0f1 ${getJointPercentage(jointName, plannedValue)}%, 
+                    #ecf0f1 100%)`,
+                  opacity: (rosServiceCalling || isOnTeacherMode) ? 0.6 : 1,
+                  transition: 'opacity 0.3s ease'
+                }}
+              />
+              
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '10px',
+                color: '#95a5a6',
+                marginTop: '2px'
+              }}>
+                <span>{config.min}°</span>
+                <span>{config.max}°</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 控制按钮区域 - 与手掌控制面板保持一致的样式 */}
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        justifyContent: 'center'
+      }}>
+        <button
+          onClick={executeArmMovement}
+          disabled={!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode}
+          style={{
+            flex: 1,
+            padding: '12px 20px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: (!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode) ? 'not-allowed' : 'pointer',
+            backgroundColor: (!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode) ? '#95a5a6' : '#27ae60',
+            color: 'white',
+            transition: 'all 0.3s ease',
+            opacity: (!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode) ? 0.6 : 1
+          }}
+        >
+          {rosServiceCalling ? '执行中...' : isOnTeacherMode ? '示教模式中' : '执行运动'}
+        </button>
+
+        <button
+          onClick={resetToRealTimeValues}
+          disabled={rosServiceCalling || isOnTeacherMode}
+          style={{
+            flex: 1,
+            padding: '12px 20px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: (rosServiceCalling || isOnTeacherMode) ? 'not-allowed' : 'pointer',
+            backgroundColor: (rosServiceCalling || isOnTeacherMode) ? '#95a5a6' : '#e74c3c',
+            color: 'white',
+            transition: 'all 0.3s ease',
+            opacity: (rosServiceCalling || isOnTeacherMode) ? 0.6 : 1
+          }}
+        >
+          重置
+        </button>
+      </div>
+
+      {/* 统一的状态提示区域 */}
+      <div style={{
+        marginTop: '15px',
+        textAlign: 'center',
+        fontSize: '12px',
+        color: '#7f8c8d'
+      }}>
+        {isOnTeacherMode && '示教模式下控制面板已禁用'}
+        {!isOnTeacherMode && rosServiceCalling && '正在与机器人通信...'}
+        {!isOnTeacherMode && isInteracting && !rosServiceCalling && '已修改参数，点击执行运动'}
+        {!isOnTeacherMode && !isInteracting && !rosServiceCalling && '等待控制指令'}
+      </div>
+
+      {/* 安全提示区域 - 在用户准备执行动作时显示 */}
+      {isInteracting && !isOnTeacherMode && (
+        <div style={{
+          marginTop: '12px',
+          padding: '8px 12px',
+          backgroundColor: 'rgba(241, 196, 15, 0.1)',
+          border: '1px solid rgba(241, 196, 15, 0.3)',
+          borderRadius: '6px',
+          fontSize: '12px',
+          color: '#f39c12',
+          textAlign: 'center'
+        }}>
+          ⚠️ 请确认机器人周围安全后再执行运动
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Home状态角度配置 - 关节顺序：Shoulder_Y, Shoulder_X, Shoulder_Z, Elbow, Wrist_Z, Wrist_Y, Wrist_X
+const HOME_STATE_CONFIG = {
+  leftArm: [0, 10, 0, -5, 0, 0, 0], // 度
+  rightArm: [0, -10, 0, -5, 0, 0, 0] // 度
+};
+
+// 角度到弧度转换函数
+const convertToRadians = (degrees) => degrees.map(deg => deg * (Math.PI / 180));
+
+const App = () => {
+
+  const areJointValuesEqual = useCallback((currentValues, plannedValues) => {
+    return Object.keys(plannedValues).every(
+      (key) => currentValues[key] === plannedValues[key]
+    );
+  }, []);
+
+  /*
+  RobotArmTarget
+  */
+
+  const [showRobotArmTarget, setShowRobotArmTarget] = useState(false);
+  const toggleComponent = () => {
+    setShowRobotArmTarget(!showRobotArmTarget);
+    setShowTeacher(2);
+  };
+
+  /*
+  Hand Components Toggle
+  */
+  const [showHandComponents, setShowHandComponents] = useState(false);
+  const toggleHandComponents = () => {
+    setShowHandComponents(!showHandComponents);
+  };
+
+  // 机器人末端坐标状态管理
+  const [CoordinatesTemp, setCoordinatesTemp] = useState({
+    Right: {
+      x: 0, y: 0, z: 0,
+      xR: 0, yR: 0, zR: 0
+    },
+    Left: {
+      x: 0, y: 0, z: 0,
+      xR: 0, yR: 0, zR: 0
+    },
+  });
+
+  const [isMoveLUpdated, setIsMoveLUpdated] = useState(false);
+
+  function quaternionToEuler(q) {
+    const quaternion = new Quaternion(q.x, q.y, q.z, q.w);
+    const euler = new Euler().setFromQuaternion(quaternion, "XYZ");
+    return { xR: euler.x, yR: euler.y, zR: euler.z };
+  }
+
+  function eulerToQuaternion(xR, yR, zR) {
+    const euler = new Euler(xR, yR, zR, "XYZ");
+    const quaternion = new Quaternion().setFromEuler(euler);
+    return { x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w };
+  }
+
+  const R_HandRef = useRef(null);
+  const L_HandRef = useRef(null);
+
+  // Arm MoveL ROS Service Call
+  const callArmMoveLService = (serviceName, target_Poses, notWait = true) => {
+    setIsMoveLUpdated(true);
+    // console.log('callArmMoveLService', serviceName, target_Poses);
+
+    if (!rosRef.current || !isConnected) {
+      // console.error("WebSocket connection to ROSBridge is not active.");
+      return;
+    }
+
+    const service = new ROSLIB.Service({
+      ros: rosRef.current,
+      name: serviceName,
+      serviceType: "navi_types/Uplimb_MoveL",
+    });
+
+    const request = new ROSLIB.ServiceRequest({
+      target_pose: target_Poses,
+      not_wait: notWait,
+    });
+
+    // console.log(`service.name: ${service.name}, service.serviceType: ${service.serviceType}`);
+    // console.log(`request.jnt_angle: ${JSON.stringify(request.target_pose)}, request.not_wait: ${request.not_wait}`);
+
+    service.callService(request, (response) => {
+      // console.log(`Response from ${serviceName}:`, response);
+      if (response && response.finish.data) {
+        // console.log(`Response from ${serviceName}: Operation completed successfully.`);
+      } else {
+        // console.error(`Response from ${serviceName}: Operation failed or incomplete.`);
+      }
+      setArmRosServiceCalling(false);
+    }, (error) => {
+      // console.error(`Error 的calling service ${serviceName}:`, error);
+    });
+  }
+
+  const handleLeftArmMoveLSrvCall = (delta, id) => {
+    const updatedCoordinates = { ...CoordinatesTemp.Left };
+
+    if (id === 'x' || id === 'y' || id === 'z') {
+      updatedCoordinates[id] += delta;
+    } else if (id === 'xR' || id === 'yR' || id === 'zR') {
+      updatedCoordinates[id] += THREE.MathUtils.degToRad(delta);
+    }
+
+    const { x, y, z, xR, yR, zR } = updatedCoordinates;
+    const quaternion = eulerToQuaternion(xR, yR, zR);
+    const target_Poses_L = {
+      position: { x, y, z },
+      orientation: {
+        x: quaternion.x,
+        y: quaternion.y,
+        z: quaternion.z,
+        w: quaternion.w
+      }
+    };
+
+    callArmMoveLService("/left_arm_movel_service", target_Poses_L);
+  }
+
+  const handleRightArmMoveLSrvCall = (delta, id) => {
+    // console.log('偏移值这老谢 ', delta)
+    const updatedCoordinates = { ...CoordinatesTemp.Right };
+
+    if (id === 'x' || id === 'y' || id === 'z') {
+      updatedCoordinates[id] += delta;
+    } else if (id === 'xR' || id === 'yR' || id === 'zR') {
+      updatedCoordinates[id] += THREE.MathUtils.degToRad(delta);
+    }
+
+    const { x, y, z, xR, yR, zR } = updatedCoordinates;
+    const quaternion = eulerToQuaternion(xR, yR, zR);
+    const target_Poses_R = {
+      position: { x, y, z },
+      orientation: {
+        x: quaternion.x,
+        y: quaternion.y,
+        z: quaternion.z,
+        w: quaternion.w
+      }
+    };
+
+    callArmMoveLService("/right_arm_movel_service", target_Poses_R);
+  }
+
+  const handleExecuteMoveL = () => {
+    // 已弃用的函数
+  }
+
+  /*
+  Arm 机械臂状态管理
+  */
+  const [armIsInteracting, setArmIsInteracting] = useState(false);
+  const onArmIsInteractingChange = (isInteracting) => {
+    setArmIsInteracting(isInteracting);
+  };
+
+  const [armRosServiceCalling, setArmRosServiceCalling] = useState(false);
+  
+  // 实时机械臂关节状态 - 来自机器人的真实反馈
+  const [realTimeArmValues, setRealTimeArmValues] = useState({
+    'Shoulder_Y_L': 0, 'Shoulder_X_L': 0, 'Shoulder_Z_L': 0, 'Elbow_L': 0,
+    'Wrist_Z_L': 0, 'Wrist_Y_L': 0, 'Wrist_X_L': 0,
+    'Shoulder_Y_R': 0, 'Shoulder_X_R': 0, 'Shoulder_Z_R': 0, 'Elbow_R': 0,
+    'Wrist_Z_R': 0, 'Wrist_Y_R': 0, 'Wrist_X_R': 0
+  });
+
+  // 从综合状态中提取左右臂数据
+  const realTimeLeftArmValues = {
+    'Shoulder_Y_L': realTimeArmValues['Shoulder_Y_L'],
+    'Shoulder_X_L': realTimeArmValues['Shoulder_X_L'],
+    'Shoulder_Z_L': realTimeArmValues['Shoulder_Z_L'],
+    'Elbow_L': realTimeArmValues['Elbow_L'],
+    'Wrist_Z_L': realTimeArmValues['Wrist_Z_L'],
+    'Wrist_Y_L': realTimeArmValues['Wrist_Y_L'],
+    'Wrist_X_L': realTimeArmValues['Wrist_X_L'],
+  };
+  const realTimeRightArmValues = {
+    'Shoulder_Y_R': realTimeArmValues['Shoulder_Y_R'],
+    'Shoulder_X_R': realTimeArmValues['Shoulder_X_R'],
+    'Shoulder_Z_R': realTimeArmValues['Shoulder_Z_R'],
+    'Elbow_R': realTimeArmValues['Elbow_R'],
+    'Wrist_Z_R': realTimeArmValues['Wrist_Z_R'],
+    'Wrist_Y_R': realTimeArmValues['Wrist_Y_R'],
+    'Wrist_X_R': realTimeArmValues['Wrist_X_R'],
+  };
+
+  // 计划机械臂关节状态 - 用户设定的目标值
+  const [plannedLeftArmValues, setPlannedLeftArmValues] = useState({
+    'Shoulder_X_L': 0, 'Shoulder_Y_L': 0, 'Shoulder_Z_L': 0, 'Elbow_L': 0,
+    'Wrist_Z_L': 0, 'Wrist_Y_L': 0, 'Wrist_X_L': 0,
+  });
+
+  const handlePlannedLeftArmChange = (name, newValue) => {
+    setPlannedLeftArmValues(prevState => ({
+      ...prevState,
+      [name]: newValue,
+    }));
+  };
+
+  const [plannedRightArmValues, setPlannedRightArmValues] = useState({
+    'Shoulder_Y_R': 0, 'Shoulder_X_R': 0, 'Shoulder_Z_R': 0, 'Elbow_R': 0,
+    'Wrist_Z_R': 0, 'Wrist_Y_R': 0, 'Wrist_X_R': 0,
+  });
+
+  const handlePlannedRightArmChange = (name, newValue) => {
+    setPlannedRightArmValues(prevState => ({
+      ...prevState,
+      [name]: newValue,
+    }));
+  };
+
+  // 同步状态管理 - 确保计划值与实时值的一致性
+  const [leftArmSyncDone, setLeftArmSyncDone] = useState(false);
+  const [rightArmSyncDone, setRightArmSyncDone] = useState(false);
+  
+  useEffect(() => {
+    if (!leftArmSyncDone && Object.values(realTimeLeftArmValues).some(value => value !== 0)) {
+      setPlannedLeftArmValues({ ...realTimeLeftArmValues });
+      setLeftArmSyncDone(true);
+    }
+  }, [realTimeLeftArmValues, leftArmSyncDone]);
+  
+  useEffect(() => {
+    if (!rightArmSyncDone && Object.values(realTimeRightArmValues).some(value => value !== 0)) {
+      setPlannedRightArmValues({ ...realTimeRightArmValues });
+      setRightArmSyncDone(true);
+    }
+  }, [realTimeRightArmValues, rightArmSyncDone]);
+
+  // Arm MoveJ ROS Service Call
+  const callArmMoveJService = (serviceName, jointAngles, notWait = false) => {
+    // console.log('callArmMoveJService', serviceName, jointAngles);
+
+    if (!rosRef.current || !isConnected) {
+      // console.error("WebSocket connection to ROSBridge is not active.");
+      return;
+    }
+
+    if (!serviceName || !jointAngles || !Array.isArray(jointAngles)) {
+      // console.error("Invalid service name or joint angles");
+      return;
+    }
+    
+    const service = new ROSLIB.Service({
+      ros: rosRef.current,
+      name: serviceName,
+      serviceType: "navi_types/Uplimb_MoveJ",
+    });
+
+    const request = new ROSLIB.ServiceRequest({
+      jnt_angle: jointAngles,
+      not_wait: notWait,
+    });
+
+    // console.log(`service.name: ${service.name}, service.serviceType: ${service.serviceType}`);
+    // console.log(`request.jnt_angle: ${JSON.stringify(request.jnt_angle)}, request.not_wait: ${request.not_wait}`);
+
+    service.callService(request, (response) => {
+      // console.log(`Response from ${serviceName}:`, response);
+      if (response && response.finish.data) {
+        // console.log(`Response from ${serviceName}: Operation completed successfully.`);
+      } else {
+        // console.error(`Response from ${serviceName}: Operation failed or incomplete.`);
+      }
+      setArmRosServiceCalling(false);
+    }, (error) => {
+      // console.error(`Error calling service ${serviceName}:`, error);
+    });
+  };
+
+  const handleLeftArmMoveJSrvCall = (plannedLeftArmValues) => {
+    setArmRosServiceCalling(true);
+    const jnt_angle = [
+      plannedLeftArmValues["Shoulder_Y_L"] * (Math.PI / 180),
+      plannedLeftArmValues["Shoulder_X_L"] * (Math.PI / 180),
+      plannedLeftArmValues["Shoulder_Z_L"] * (Math.PI / 180),
+      plannedLeftArmValues["Elbow_L"] * (Math.PI / 180),
+      plannedLeftArmValues["Wrist_Z_L"] * (Math.PI / 180),
+      plannedLeftArmValues["Wrist_Y_L"] * (Math.PI / 180),
+      plannedLeftArmValues["Wrist_X_L"] * (Math.PI / 180)
+    ];
+    setArmIsInteracting(false);
+    // console.log('调用左臂服务，参数为：', plannedLeftArmValues);
+    callArmMoveJService("/left_arm_movej_service", jnt_angle);
+  };
+
+  const handleRightArmMoveJSrvCall = (plannedRightArmValues) => {
+    setArmRosServiceCalling(true);
+    const jnt_angle = [
+      plannedRightArmValues["Shoulder_Y_R"] * (Math.PI / 180),
+      plannedRightArmValues["Shoulder_X_R"] * (Math.PI / 180),
+      plannedRightArmValues["Shoulder_Z_R"] * (Math.PI / 180),
+      plannedRightArmValues["Elbow_R"] * (Math.PI / 180),
+      plannedRightArmValues["Wrist_Z_R"] * (Math.PI / 180),
+      plannedRightArmValues["Wrist_Y_R"] * (Math.PI / 180),
+      plannedRightArmValues["Wrist_X_R"] * (Math.PI / 180)
+    ];
+    setArmIsInteracting(false);
+    // console.log('调用右臂服务，参数为：', plannedRightArmValues);
+    callArmMoveJService("/right_arm_movej_service", jnt_angle);
+  };
+
+  /* 
+  Hand 手掌状态管理
+  */
+  const [handIsInteracting, setHandIsInteracting] = useState(false);
+  const onHandIsInteractingChange = (isInteracting) => {
+    setHandIsInteracting(isInteracting);
+  };
+  const [handRosServiceCalling, setHandRosServiceCalling] = useState(false);
+
+  // 实时手掌关节状态
+  const [realTimeLeftHandValues, setRealTimeLeftHandValues] = useState({
+    'index_MCP': 0, 'thumb_CMC': 0, 'thumb_IP': 0,
+    'middle_MCP': 0, 'ring_MCP': 0, 'little_MCP': 0
+  });
+
+  const [realTimeRightHandValues, setRealTimeRightHandValues] = useState({
+    'index_MCP': 0, 'thumb_CMC': 0, 'thumb_IP': 0,
+    'middle_MCP': 0, 'ring_MCP': 0, 'little_MCP': 0
+  });
+
+  // 计划手掌关节状态
+  const [plannedLeftHandValues, setPlannedLeftHandValues] = useState({
+    'index_MCP': realTimeLeftHandValues['index_MCP'],
+    'thumb_CMC': realTimeLeftHandValues['thumb_CMC'],
+    'thumb_IP': realTimeLeftHandValues['thumb_IP'],
+    'middle_MCP': realTimeLeftHandValues['middle_MCP'],
+    'ring_MCP': realTimeLeftHandValues['ring_MCP'],
+    'little_MCP': realTimeLeftHandValues['little_MCP']
+  });
+  
+  const handlePlannedLeftHandChange = (jointName, value) => {
+    setPlannedLeftHandValues(prevValues => ({
+      ...prevValues,
+      [jointName]: value
+    }));
+  };
+
+  const [plannedRightHandValues, setPlannedRightHandValues] = useState({
+    'index_MCP': realTimeRightHandValues['index_MCP'],
+    'thumb_CMC': realTimeRightHandValues['thumb_CMC'],
+    'thumb_IP': realTimeRightHandValues['thumb_IP'],
+    'middle_MCP': realTimeRightHandValues['middle_MCP'],
+    'ring_MCP': realTimeRightHandValues['ring_MCP'],
+    'little_MCP': realTimeRightHandValues['little_MCP']
+  });
+  
+  const handlePlannedRightHandChange = (jointName, value) => {
+    setPlannedRightHandValues(prevValues => ({
+      ...prevValues,
+      [jointName]: value
+    }));
+  };
+
+  // Call Hand ROS Service
+  const callHandService = (serviceName, id, jointValues) => {
+    // console.log('callHandService', serviceName);
+
+    if (!rosRef.current || !isConnected) {
+      // console.error("WebSocket connection to ROSBridge is not active.");
+      return;
+    }
+
+    const service = new ROSLIB.Service({
+      ros: rosRef.current,
+      name: serviceName,
+      serviceType: "navi_types/Hand_Joint",
+    });
+
+    const request = new ROSLIB.ServiceRequest({
+      id: id,
+      q: jointValues,
+    });
+    
+    // console.log(`service.ros: ${service.ros}, service.name: ${service.name}, service.serviceType: ${service.serviceType}`);
+    // console.log(`request.id: ${request.id}, request.q: ${JSON.stringify(request.q)}`);
+    
+    service.callService(request, (response) => {
+      // console.log(`Response from ${serviceName}:`, response);
+
+      if (response.success) {
+        // console.log(`Hand ROS Service Call succeeded: ${response.message}`);
+      } else {
+        // console.error(`Hand ROS Service Call failed: ${response.message}`);
+      }
+      setHandRosServiceCalling(false);
+    });
+  };
+
+  const handleLeftHandMoveServiceCall = (plannedLeftHandValues) => {
+    setHandRosServiceCalling(true);
+    const jointAngles = [
+      plannedLeftHandValues["thumb_IP"] * (Math.PI / 180),
+      plannedLeftHandValues["thumb_CMC"] * (Math.PI / 180),
+      plannedLeftHandValues["index_MCP"] * (Math.PI / 180),
+      plannedLeftHandValues["middle_MCP"] * (Math.PI / 180),
+      plannedLeftHandValues["ring_MCP"] * (Math.PI / 180),
+      plannedLeftHandValues["little_MCP"] * (Math.PI / 180)
+    ];
+    setHandIsInteracting(false);
+    callHandService("/robotHandJointSwitch", 0, jointAngles);
+  };
+
+  const handleRightHandMoveJServiceCall = (plannedRightHandValues) => {
+    setHandRosServiceCalling(true);
+    const jointAngles = [
+      plannedRightHandValues["thumb_IP"] * (Math.PI / 180),
+      plannedRightHandValues["thumb_CMC"] * (Math.PI / 180),
+      plannedRightHandValues["index_MCP"] * (Math.PI / 180),
+      plannedRightHandValues["middle_MCP"] * (Math.PI / 180),
+      plannedRightHandValues["ring_MCP"] * (Math.PI / 180),
+      plannedRightHandValues["little_MCP"] * (Math.PI / 180)
+    ];
+    setHandIsInteracting(false);
+    callHandService("/robotHandJointSwitch", 1, jointAngles);
+  };
+
+  // 手掌同步状态管理
+  const [leftHandSyncDone, setLeftHandSyncDone] = useState(false);
+  const [rightHandSyncDone, setRightHandSyncDone] = useState(false);
+
+  useEffect(() => {
+    if (!leftHandSyncDone && Object.values(realTimeLeftHandValues).some(value => value !== 0)) {
+      setPlannedLeftHandValues({ ...realTimeLeftHandValues });
+      setLeftHandSyncDone(true);
+    }
+  }, [realTimeLeftHandValues, leftHandSyncDone]);
+
+  useEffect(() => {
+    if (!rightHandSyncDone && Object.values(realTimeRightHandValues).some(value => value !== 0)) {
+      setPlannedRightHandValues({ ...realTimeRightHandValues });
+      setRightHandSyncDone(true);
+    }
+  }, [realTimeRightHandValues, rightHandSyncDone]);
+
+  /*
+  ROS连接和话题订阅管理
+  */
+  const [isConnected, setIsConnected] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  
+  // 机器人状态管理
+  const [robotState, setRobotState] = useState(0);
+  const [robotStateInfo, setRobotStateInfo] = useState('');
+
+  const ROS_HOST = window.location.hostname === 'localhost' ? config.rosbridge.ROS_HOST : window.location.hostname;
+  const ROS_PORT = config.rosbridge.ROS_PORT;
+  const reconnectionInterval = config.rosbridge.reconnectionInterval;
+  const rosRef = useRef(new ROSLIB.Ros());
+  
+  useEffect(() => {
+    const ros = rosRef.current;
+
+    const handleConnection = () => {
+      // console.log('Connected to ROSBridge');
+      setIsConnected(true);
+      setErrorMessage('');
+    };
+
+    const handleClose = () => {
+      // console.log('Disconnected from ROSBridge');
+      setIsConnected(false);
+      setErrorMessage('Disconnected from ROSBridge');
+
+      setTimeout(() => {
+        ros.connect(`ws://${ROS_HOST}:${ROS_PORT}`);
+      }, reconnectionInterval);
+    };
+
+    const handleError = (error) => {
+      // console.error('Error connecting to ROSBridge:', error);
+      setErrorMessage('Error connecting to ROSBridge');
+    };
+
+    ros.close();
+    ros.connect(`ws://${ROS_HOST}:${ROS_PORT}`);
+
+    ros.on('connection', handleConnection);
+    ros.on('close', handleClose);
+    ros.on('error', handleError);
+
+    // 订阅机器人末端位姿
+    const left_arm_tcp_pose = new ROSLIB.Topic({
+      ros,
+      name: '/left_arm_tcp_pose',
+      messageType: 'geometry_msgs/Pose',
+    });
+    
+    left_arm_tcp_pose.subscribe((message) => {
+      const { x, y, z } = message.position;
+      const { xR, yR, zR } = quaternionToEuler(message.orientation);
+      
+      setCoordinatesTemp((prev) => ({
+        ...prev,
+        Left: { x, y, z, xR, yR, zR },
+      }));
+      
+      L_HandRef.current.position.x = x;
+      L_HandRef.current.position.y = y;
+      L_HandRef.current.position.z = z;
+      L_HandRef.current.rotation.x = xR;
+      L_HandRef.current.rotation.y = yR - Math.PI;
+      L_HandRef.current.rotation.z = -zR;
+    });
+
+    const right_arm_tcp_pose = new ROSLIB.Topic({
+      ros,
+      name: '/right_arm_tcp_pose',
+      messageType: 'geometry_msgs/Pose',
+    });
+
+    right_arm_tcp_pose.subscribe((message) => {
+      const { x, y, z } = message.position;
+      const { xR, yR, zR } = quaternionToEuler(message.orientation);
+      
+      setCoordinatesTemp((prev) => ({
+        ...prev,
+        Right: { x, y, z, xR, yR, zR },
+      }));
+      
+      R_HandRef.current.position.x = x;
+      R_HandRef.current.position.y = y;
+      R_HandRef.current.position.z = z;
+      R_HandRef.current.rotation.x = xR;
+      R_HandRef.current.rotation.y = yR - Math.PI;
+      R_HandRef.current.rotation.z = -zR;
+    })
+    
+    // 订阅机械臂关节状态
+    const armJointStates = new ROSLIB.Topic({
+      ros,
+      name: '/joint_states',
+      messageType: 'sensor_msgs/JointState',
+    });
+
+    let i = 0;
+    let lastSeq = -1;
+
+    armJointStates.subscribe((message) => {
+      if (message.header && message.header.seq <= lastSeq) {
+        return;
+      }
+
+      if (message.header) {
+        lastSeq = message.header.seq;
+      }
+
+      i++;
+      if (i % 10 === 5) {
+        const updatedArmValues = {
+          Shoulder_Y_L: message.position[0] || 0,
+          Shoulder_X_L: message.position[1] || 0,
+          Shoulder_Z_L: message.position[2] || 0,
+          Elbow_L: message.position[3] || 0,
+          Wrist_Z_L: message.position[4] || 0,
+          Wrist_Y_L: message.position[5] || 0,
+          Wrist_X_L: message.position[6] || 0,
+          Shoulder_Y_R: message.position[7] || 0,
+          Shoulder_X_R: message.position[8] || 0,
+          Shoulder_Z_R: message.position[9] || 0,
+          Elbow_R: message.position[10] || 0,
+          Wrist_Z_R: message.position[11] || 0,
+          Wrist_Y_R: message.position[12] || 0,
+          Wrist_X_R: message.position[13] || 0,
+        };
+        
+        const updatedArmValuesInDegrees = Object.keys(updatedArmValues).reduce((acc, key) => {
+          acc[key] = updatedArmValues[key] * (180 / Math.PI);
+          return acc;
+        }, {});
+
+        setRealTimeArmValues((prev) => ({
+          ...prev,
+          ...updatedArmValuesInDegrees,
+        }));
+      }
+    });
+
+    // 订阅手掌关节状态
+    const handJointStates = new ROSLIB.Topic({
+      ros,
+      name: '/hand_joint_states',
+      messageType: 'sensor_msgs/JointState',
+    });
+
+    handJointStates.subscribe((message) => {
+      const updatedLeftHandValues = {
+        thumb_IP: message.position[0] || 0,
+        thumb_CMC: message.position[1] || 0,
+        index_MCP: message.position[2] || 0,
+        middle_MCP: message.position[3] || 0,
+        ring_MCP: message.position[4] || 0,
+        little_MCP: message.position[5] || 0,
+      };
+
+      const updatedRightHandValues = {
+        thumb_IP: message.position[6] || 0,
+        thumb_CMC: message.position[7] || 0,
+        index_MCP: message.position[8] || 0,
+        middle_MCP: message.position[9] || 0,
+        ring_MCP: message.position[10] || 0,
+        little_MCP: message.position[11] || 0,
+      };
+
+      const updatedLeftHandValuesInDegrees = Object.keys(updatedLeftHandValues).reduce((acc, key) => {
+        acc[key] = updatedLeftHandValues[key] * (180 / Math.PI);
+        return acc;
+      }, {});
+
+      const updatedRightHandValuesInDegrees = Object.keys(updatedRightHandValues).reduce((acc, key) => {
+        acc[key] = updatedRightHandValues[key] * (180 / Math.PI);
+        return acc;
+      }, {});
+
+      setRealTimeLeftHandValues((prev) => ({
+        ...prev,
+        ...updatedLeftHandValuesInDegrees,
+      }));
+
+      setRealTimeRightHandValues((prev) => ({
+        ...prev,
+        ...updatedRightHandValuesInDegrees,
+      }));
+    });
+
+    // 订阅机器人状态
+    const robotStateTopic = new ROSLIB.Topic({
+      ros,
+      name: '/robot_state',
+      messageType: 'navi_types/Robot_StateMsg',
+    });
+
+    robotStateTopic.subscribe((message) => {
+      console.log('Received robot state:', message);
+      // 根据实际消息格式解析状态
+      if (message && typeof message.state !== 'undefined') {
+        setRobotState(message.state);
+        setRobotStateInfo(message.state_info || '');
+      } else {
+        console.log('Message received but no state field found:', message);
+      }
+    }, (error) => {
+      console.error('Error subscribing to robot state topic:', error);
+    });
+
+    return () => {
+      ros.off('connection', handleConnection);
+      ros.off('close', handleClose);
+      ros.off('error', handleError);
+
+      armJointStates.unsubscribe();
+      handJointStates.unsubscribe();
+      left_arm_tcp_pose.unsubscribe();
+      right_arm_tcp_pose.unsubscribe();
+      robotStateTopic.unsubscribe();
+      ros.close();
+    };
+  }, [ROS_HOST, ROS_PORT, reconnectionInterval]);
+
+  // 鼠标样式管理
+  useEffect(() => {
+    if (armRosServiceCalling) {
+      document.body.style.cursor = 'url("~/public/cursor/1.png"), auto';
+    } else if (handRosServiceCalling) {
+      document.body.style.cursor = 'url("~/public/cursor/2.png"), auto';
+    } else {
+      document.body.style.cursor = 'default';
+    }
+  }, [armRosServiceCalling, handRosServiceCalling]);
+
+  const mergedData = {
+    leftHand: plannedLeftHandValues,
+    rightHand: plannedRightHandValues,
+    leftArm: plannedLeftArmValues,
+    rightArm: plannedRightArmValues,
+  };
+
+    /*
+  预设动作管理
+   */
+  const [currentActionTimer, setCurrentActionTimer] = useState(null);
+  const [currentActionId, setCurrentActionId] = useState(null);
+
+  const handlePresetActionPress = (actionId) => {
+    if (actionId >= 1 && actionId <= 4 && !currentActionTimer) {
+      setArmRosServiceCalling(true);
+      setCurrentActionId(actionId);
+      // 立即发送一次
+      callCmdVelTwist(TWIST_PRESETS[actionId]);
+      // 启动10Hz定时器
+      const timer = setInterval(() => {
+        callCmdVelTwist(TWIST_PRESETS[actionId]);
+      }, 100);
+      setCurrentActionTimer(timer);
+    }
+  };
+
+  const handlePresetActionRelease = () => {
+    if (currentActionTimer) {
+      clearInterval(currentActionTimer);
+      setCurrentActionTimer(null);
+      setCurrentActionId(null);
+      // 立即发送停止帧
+      callCmdVelTwist({ linear: { x: 0, y: 0, z: 0 }, angular: { x: 0, y: 0, z: 0 } });
+      setArmRosServiceCalling(false);
+    }
+  };
+
+  const handlePresetAction = async (actionId) => {
+    // Home动作
+    if (actionId === 'home') {
+      handleHomeAction();
+      return;
+    }
+    
+    // 挥手
+    if (actionId === 5) {
+      setArmRosServiceCalling(true);
+      for (let i = 0; i < RIGHT_ARM_WAVE_TRAJECTORY.length; i++) {
+        await new Promise((resolve) => {
+          callArmMoveJService("/right_arm_movej_service", RIGHT_ARM_WAVE_TRAJECTORY[i], true);
+          setTimeout(resolve, 800);
+        });
+      }
+      setArmRosServiceCalling(false);
+      return;
+    }
+    
+    // Home动作 - 动作6
+    if (actionId === 6) {
+      handleHomeAction();
+      return;
+    }
+    
+    // 运行 - 动作7
+    if (actionId === 7) {
+      setArmRosServiceCalling(true);
+      callRobotStateService(5); // RUN = 5
+      setTimeout(() => {
+        setArmRosServiceCalling(false);
+      }, 1000);
+      return;
+    }
+    
+    // 软急停 - 动作8
+    if (actionId === 8) {
+      setArmRosServiceCalling(true);
+      callRobotStateService(9); // STOP = 9
+      setTimeout(() => {
+        setArmRosServiceCalling(false);
+      }, 1000);
+      return;
+    }
+    
+    // 关机 - 动作9
+    if (actionId === 9) {
+      setArmRosServiceCalling(true);
+      setRobotState(8); // 立即更新状态为关机
+      callRobotStateService(8); // OFF = 8
+      setTimeout(() => {
+        setArmRosServiceCalling(false);
+      }, 1000);
+      return;
+    }
+    
+    // 其他动作
+    if (actionId < 1 || actionId > 12) {
+      alert("该预设动作暂未定义");
+      setArmRosServiceCalling(false);
+    }
+  };
+
+  // Home动作处理函数
+  const handleHomeAction = () => {
+    if (!isConnected || armRosServiceCalling) {
+      return;
+    }
+    
+    setArmRosServiceCalling(true);
+    
+    try {
+      const leftAngles = convertToRadians(HOME_STATE_CONFIG.leftArm);
+      const rightAngles = convertToRadians(HOME_STATE_CONFIG.rightArm);
+      
+      // 调用左臂服务
+      callArmMoveJService("/left_arm_movej_service", leftAngles);
+      
+      // 调用右臂服务
+      callArmMoveJService("/right_arm_movej_service", rightAngles);
+      
+    } catch (error) {
+      console.error('Home action failed:', error);
+      setArmRosServiceCalling(false);
+    }
+  };
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (currentActionTimer) {
+        clearInterval(currentActionTimer);
+      }
+    };
+  }, [currentActionTimer]);
+
+  /*
+  示教模式管理
+  */
+  const [showTeacher, setShowTeacher] = useState(2);
+  const toggleTeacher = () => {
+    setShowTeacher(prevState => (prevState + 1) % 3);
+    setShowRobotArmTarget(false);
+    setShowHandComponents(false);
+    setShowPresetActions(false);
+    setArmIsInteracting(false);
+  }
+
+  /*
+  预设动作模式管理
+  */
+  const [showPresetActions, setShowPresetActions] = useState(false);
+  const togglePresetActions = () => {
+    setShowPresetActions(!showPresetActions);
+    setShowRobotArmTarget(false);
+    setShowHandComponents(false);
+    setShowTeacher(2);
+    setArmIsInteracting(false);
+  }
+  
+  useEffect(() => {
+    if (isConnected === true) {
+      callTeachingService('/teach_mode_service', showTeacher);
+      // console.log(`Mode ${showTeacher} Completed`);
+    }
+  }, [showTeacher]);
+
+  const callTeachingService = (serviceName, modeIndex) => {
+    if (!rosRef.current || !isConnected) {
+      console.error("WebSocket connection to ROSBridge is not active.");
+      return;
+    }
+    // console.log(`Teachinf Mode ${modeIndex} is Completed`);
+
+    const service = new ROSLIB.Service({
+      ros: rosRef.current,
+      name: serviceName,
+      serviceType: "naviai_manip_srvs/TeachMode",
+    });
+
+    const request = new ROSLIB.ServiceRequest({
+      mode: modeIndex,
+    });
+
+    service.callService(request, (response) => {
+      // console.log(`Response from ${serviceName}:`, response);
+      if (response) {
+        // console.log(`Response from ${serviceName}: Operation completed successfully.`);
+      } else {
+        console.error(`Response from ${serviceName}: Operation failed or incomplete.`);
+      }
+    }, (error) => {
+      console.error(`Error calling service ${serviceName}:`, error);
+    });
+  };
+
+  // Twist消息模板
+  const TWIST_PRESETS = {
+    1: { linear: { x: 0.3, y: 0, z: 0 }, angular: { x: 0, y: 0, z: 0 } },   // 前进
+    2: { linear: { x: -0.3, y: 0, z: 0 }, angular: { x: 0, y: 0, z: 0 } },  // 后退
+    3: { linear: { x: 0, y: 0, z: 0 }, angular: { x: 0, y: 0, z: 0.7 } },   // 左转
+    4: { linear: { x: 0, y: 0, z: 0 }, angular: { x: 0, y: 0, z: -0.7 } },  // 右转
+  };
+  // 挥手轨迹点
+  const RIGHT_ARM_WAVE_TRAJECTORY = [
+    [-0.9, -1.6, -0.5, -1.5, 0.0, 0.0, 0.0],
+    [-0.9, -1.6, -0.5, -0.5, 0.0, 0.0, 0.0],
+    [-0.9, -1.6, -0.5, -1.5, 0.0, 0.0, 0.0],
+    [-0.9, -1.6, -0.5, -0.5, 0.0, 0.0, 0.0],
+    [-0.0, -0.33, 0.0, -0.0, 0.0, -0.0, -0.0]
+  ];
+
+  // 机器人状态控制服务调用函数
+  const callRobotStateService = (targetState) => {
+    if (!rosRef.current || !isConnected) {
+      console.error("WebSocket connection to ROSBridge is not active.");
+      return;
+    }
+
+    const service = new ROSLIB.Service({
+      ros: rosRef.current,
+      name: "/set_robot_state",
+      serviceType: "navi_types/Robot_SetState",
+    });
+
+    const request = new ROSLIB.ServiceRequest({
+      target_state: targetState,
+    });
+
+    service.callService(request, (response) => {
+      console.log(`Robot state service response:`, response);
+      if (response && response.success) {
+        console.log(`Robot state changed successfully: ${response.message}`);
+      } else {
+        console.error(`Robot state change failed: ${response?.message || 'Unknown error'}`);
+      }
+    }, (error) => {
+      console.error(`Error calling robot state service:`, error);
+    });
+  };
+
+  const callCmdVelTwist = (twistMsg) => {
+    if (!rosRef.current || !isConnected) {
+      console.error("WebSocket connection to ROSBridge is not active.");
+      return;
+    }
+    const topic = new ROSLIB.Topic({
+      ros: rosRef.current,
+      name: "/cmd_web_vel",
+      messageType: "geometry_msgs/Twist",
+    });
+    const msg = new ROSLIB.Message(twistMsg);
+    topic.publish(msg);
+  };
+
+  return (
+    <div className="app" style={{ position: 'relative', height: '100vh', overflow: 'hidden' }}>
+      {/* 顶部按钮栏 - 统一风格的五个主要模式切换按钮 */}
+      <div style={{
+        position: 'absolute',
+        top: '2%',
+        left: 0,
+        width: '100%',
+        zIndex: 10,
+        display: 'flex',
+        justifyContent: 'space-evenly',
+        alignItems: 'center',
+        padding: '0 2vw',
+        boxSizing: 'border-box',
+      }}>
+        <button
+          onClick={toggleTeacher}
+          style={{
+            padding: '10px 20px',
+            fontSize: '16px',
+            backgroundColor: '#f084b8',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            minWidth: '140px',
+            textAlign: 'center'
+          }}
+        >
+          {showTeacher === 0 ? '左右手臂+腰示教中' : showTeacher === 1 ? '左右手臂示教中' : '退出示教'}
+        </button>
+
+        <button
+          onClick={() => { 
+            setShowRobotArmTarget(false); 
+            setShowHandComponents(false); 
+            setShowPresetActions(false);
+            setShowTeacher(2); // 确保退出示教模式
+            setArmIsInteracting(false); // 重置交互状态
+          }}
+          style={{
+            padding: '10px 20px',
+            fontSize: '16px',
+            backgroundColor: !showRobotArmTarget && !showHandComponents && !showPresetActions ? '#3498db' : '#95a5a6',
+            color: 'white',
+            border: !showRobotArmTarget && !showHandComponents && !showPresetActions ? '2px solid #1c6ea4' : 'none',
+            borderRadius: '5px',
+            fontWeight: !showRobotArmTarget && !showHandComponents && !showPresetActions ? 'bold' : 'normal',
+            cursor: 'pointer',
+            boxShadow: !showRobotArmTarget && !showHandComponents && !showPresetActions ? '0 0 8px #3498db55' : 'none',
+            transition: 'all 0.2s',
+            minWidth: '140px',
+            textAlign: 'center'
+          }}
+        >
+          手臂控制模式
+        </button>
+
+        <button
+          onClick={() => { 
+            setShowRobotArmTarget(true); 
+            setShowHandComponents(false); 
+            setShowPresetActions(false);
+            setShowTeacher(2); // 确保退出示教模式
+            setArmIsInteracting(false); // 重置交互状态
+          }}
+          style={{
+            padding: '10px 20px',
+            fontSize: '16px',
+            backgroundColor: showRobotArmTarget && !showHandComponents && !showPresetActions ? '#3498db' : '#95a5a6',
+            color: 'white',
+            border: showRobotArmTarget && !showHandComponents && !showPresetActions ? '2px solid #1c6ea4' : 'none',
+            borderRadius: '5px',
+            fontWeight: showRobotArmTarget && !showHandComponents && !showPresetActions ? 'bold' : 'normal',
+            cursor: 'pointer',
+            boxShadow: showRobotArmTarget && !showHandComponents && !showPresetActions ? '0 0 8px #3498db55' : 'none',
+            transition: 'all 0.2s',
+            minWidth: '140px',
+            textAlign: 'center'
+          }}
+        >
+          末端控制模式
+        </button>
+
+        <button
+          onClick={() => { 
+            setShowHandComponents(true); 
+            setShowRobotArmTarget(false);
+            setShowPresetActions(false);
+          }}
+          style={{
+            padding: '10px 20px',
+            fontSize: '16px',
+            backgroundColor: showHandComponents && !showPresetActions ? '#3498db' : '#95a5a6',
+            color: 'white',
+            border: showHandComponents && !showPresetActions ? '2px solid #1c6ea4' : 'none',
+            borderRadius: '5px',
+            fontWeight: showHandComponents && !showPresetActions ? 'bold' : 'normal',
+            cursor: 'pointer',
+            boxShadow: showHandComponents && !showPresetActions ? '0 0 8px #3498db55' : 'none',
+            transition: 'all 0.2s',
+            minWidth: '140px',
+            textAlign: 'center'
+          }}
+        >
+          手掌控制模式
+        </button>
+
+        <button
+          onClick={togglePresetActions}
+          style={{
+            padding: '10px 20px',
+            fontSize: '16px',
+            backgroundColor: showPresetActions ? '#3498db' : '#95a5a6',
+            color: 'white',
+            border: showPresetActions ? '2px solid #1c6ea4' : 'none',
+            borderRadius: '5px',
+            fontWeight: showPresetActions ? 'bold' : 'normal',
+            cursor: 'pointer',
+            boxShadow: showPresetActions ? '0 0 8px #3498db55' : 'none',
+            transition: 'all 0.2s',
+            minWidth: '140px',
+            textAlign: 'center'
+          }}
+        >
+          预设动作模式
+        </button>
+              </div>
+
+                {/* 示教组件 - 只在非手掌模式和预设动作模式下显示 */}
+        {showTeacher !== 2 && !showHandComponents && !showPresetActions && <Teacher />}
+
+      {/* 机器人主视图 - 手臂控制模式 */}
+      {!showHandComponents && !showPresetActions && !showRobotArmTarget && (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
+          <RobotViewer
+            rosServiceCalling={armRosServiceCalling}
+            isInteracting={armIsInteracting}
+            onInteractionChange={onArmIsInteractingChange}
+            realTimeLeftArmValues={realTimeLeftArmValues}
+            realTimeRightArmValues={realTimeRightArmValues}
+            plannedLeftArmValues={plannedLeftArmValues}
+            plannedRightArmValues={plannedRightArmValues}
+            onLeftControlChange={handlePlannedLeftArmChange}
+            onRightControlChange={handlePlannedRightArmChange}
+            onLeftMoveJSrvCall={handleLeftArmMoveJSrvCall}
+            onRightMoveJSrvCall={handleRightArmMoveJSrvCall}
+            style={{ width: '100%', height: '100%' }}
+            showRobotArmTarget={false}
+            L_HandRef={L_HandRef}
+            R_HandRef={R_HandRef}
+            CoordinatesTemp={CoordinatesTemp}
+            setCoordinatesTemp={setCoordinatesTemp}
+            handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
+            handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
+          />
+        </div>
+      )}
+
+      {/* 末端控制模式界面 - 采用与预设动作模式相同的布局 */}
+      {showRobotArmTarget && (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
+          {/* 机器人主视图 - 与其他模式相同，但不显示内部的RobotArmTarget */}
+          <RobotViewer
+            rosServiceCalling={armRosServiceCalling}
+            isInteracting={armIsInteracting}
+            onInteractionChange={onArmIsInteractingChange}
+            realTimeLeftArmValues={realTimeLeftArmValues}
+            realTimeRightArmValues={realTimeRightArmValues}
+            plannedLeftArmValues={plannedLeftArmValues}
+            plannedRightArmValues={plannedRightArmValues}
+            onLeftControlChange={handlePlannedLeftArmChange}
+            onRightControlChange={handlePlannedRightArmChange}
+            onLeftMoveJSrvCall={handleLeftArmMoveJSrvCall}
+            onRightMoveJSrvCall={handleRightArmMoveJSrvCall}
+            style={{ width: '100%', height: '100%' }}
+            showRobotArmTarget={false} // 重要：设置为false，不在RobotViewer内部显示
+            L_HandRef={L_HandRef}
+            R_HandRef={R_HandRef}
+            CoordinatesTemp={CoordinatesTemp}
+            setCoordinatesTemp={setCoordinatesTemp}
+            handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
+            handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
+          />
+
+          {/* 左侧末端控制面板 - 使用重构后的RobotArmTarget组件 */}
+          <div style={{
+            position: 'absolute',
+            left: '2%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '280px',
+            zIndex: 10
+          }}>
+            <RobotArmTarget
+              type="L"
+              CoordinatesTemp={CoordinatesTemp}
+              setCoordinatesTemp={setCoordinatesTemp}
+              currentChoosedHandRef={null}
+              rosServiceCalling={armRosServiceCalling}
+              HandRef={L_HandRef}
+              MoveLSrvCall={handleLeftArmMoveLSrvCall}
+            />
+          </div>
+
+          {/* 右侧末端控制面板 - 使用重构后的RobotArmTarget组件 */}
+          <div style={{
+            position: 'absolute',
+            right: '2%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '280px',
+            zIndex: 10
+          }}>
+            <RobotArmTarget
+              type="R"
+              CoordinatesTemp={CoordinatesTemp}
+              setCoordinatesTemp={setCoordinatesTemp}
+              currentChoosedHandRef={null}
+              rosServiceCalling={armRosServiceCalling}
+              HandRef={R_HandRef}
+              MoveLSrvCall={handleRightArmMoveLSrvCall}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 预设动作模式界面 */}
+      {showPresetActions && (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
+          {/* 机器人主视图 - 与手臂控制模式相同 */}
+          <RobotViewer
+            rosServiceCalling={armRosServiceCalling}
+            isInteracting={armIsInteracting}
+            onInteractionChange={onArmIsInteractingChange}
+            realTimeLeftArmValues={realTimeLeftArmValues}
+            realTimeRightArmValues={realTimeRightArmValues}
+            plannedLeftArmValues={plannedLeftArmValues}
+            plannedRightArmValues={plannedRightArmValues}
+            onLeftControlChange={handlePlannedLeftArmChange}
+            onRightControlChange={handlePlannedRightArmChange}
+            onLeftMoveJSrvCall={handleLeftArmMoveJSrvCall}
+            onRightMoveJSrvCall={handleRightArmMoveJSrvCall}
+            style={{ width: '100%', height: '100%' }}
+            showRobotArmTarget={false}
+            L_HandRef={L_HandRef}
+            R_HandRef={R_HandRef}
+            CoordinatesTemp={CoordinatesTemp}
+            setCoordinatesTemp={setCoordinatesTemp}
+            handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
+            handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
+          />
+
+          {/* 左侧预设动作控制面板 - 动作1-6 */}
+          <div style={{
+            position: 'absolute',
+            left: '2%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '300px',
+            zIndex: 10
+          }}>
+            <PresetActionPanel
+              actions={[
+                { id: 1, name: '前进', description: '预设动作1' },
+                { id: 2, name: '后退', description: '预设动作2' },
+                { id: 3, name: '左转', description: '预设动作3' },
+                { id: 4, name: '右转', description: '预设动作4' },
+                { id: 5, name: '挥手', description: '预设动作5' },
+                { id: 6, name: 'Home', description: '回到初始位置' }
+              ]}
+              rosServiceCalling={armRosServiceCalling}
+              onPresetAction={handlePresetAction}
+              onPresetActionPress={handlePresetActionPress}
+              onPresetActionRelease={handlePresetActionRelease}
+            />
+          </div>
+
+          {/* 右侧预设动作控制面板 - 动作7-12 */}
+          <div style={{
+            position: 'absolute',
+            right: '2%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '300px',
+            zIndex: 10
+          }}>
+            <PresetActionPanel
+              actions={[
+                { id: 7, name: '运行', description: '预设动作7' },
+                { id: 8, name: '软急停', description: '预设动作8' },
+                { id: 9, name: '关机', description: '预设动作9' },
+                { id: 10, name: '动作10', description: '预设动作10' },
+                { id: 11, name: '动作11', description: '预设动作11' },
+                { id: 12, name: '动作12', description: '预设动作12' }
+              ]}
+              rosServiceCalling={armRosServiceCalling}
+              onPresetAction={handlePresetAction}
+              onPresetActionPress={handlePresetActionPress}
+              onPresetActionRelease={handlePresetActionRelease}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 手掌专用模式界面 - 完全独立的手掌控制环境 */}
+      {showHandComponents && (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, backgroundColor: '#f0f0f0' }}>
+          <div style={{ position: 'absolute', top: '8%', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
+            <h2 style={{ color: '#333', fontSize: '28px', margin: 0, fontWeight: 'bold' }}>手掌控制模式</h2>
+          </div>
+
+          <div style={{ 
+            position: 'absolute', 
+            top: '15%', 
+            left: '50%', 
+            transform: 'translateX(-50%)', 
+            width: '60%', 
+            height: '70%', 
+            display: 'flex',
+            gap: '30px',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            zIndex: 2 
+          }}>
+            <div style={{ 
+              flex: '1',
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%'
+            }}>
+              <h3 style={{ color: '#333', textAlign: 'center', marginBottom: '15px', fontSize: '20px' }}>左手显示</h3>
+              <div style={{ 
+                flex: '1',
+                transform: 'scale(1.5)', 
+                transformOrigin: 'center center',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
+                <HandViewer
+                  isInteracting={handIsInteracting}
+                  onInteractionChange={onHandIsInteractingChange}
+                  rosServiceCalling={handRosServiceCalling}
+                  realTimeHandValues={realTimeLeftHandValues}
+                  plannedHandValues={plannedLeftHandValues}
+                  type="L"
+                  onControlChange={handlePlannedLeftHandChange}
+                  onHandSrvCall={handleLeftHandMoveServiceCall}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ 
+              flex: '1',
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%'
+            }}>
+              <h3 style={{ color: '#333', textAlign: 'center', marginBottom: '15px', fontSize: '20px' }}>右手显示</h3>
+              <div style={{ 
+                flex: '1',
+                transform: 'scale(1.5)', 
+                transformOrigin: 'center center',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
+                <HandViewer
+                  isInteracting={handIsInteracting}
+                  onInteractionChange={onHandIsInteractingChange}
+                  rosServiceCalling={handRosServiceCalling}
+                  realTimeHandValues={realTimeRightHandValues}
+                  plannedHandValues={plannedRightHandValues}
+                  type="R"
+                  onControlChange={handlePlannedRightHandChange}
+                  onHandSrvCall={handleRightHandMoveJServiceCall}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 左侧手掌滑块控制面板 */}
+          <div style={{
+            position: 'absolute',
+            left: '2%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '300px',
+            zIndex: 10
+          }}>
+            <HandSliderControl
+              isInteracting={handIsInteracting}
+              onInteractionChange={onHandIsInteractingChange}
+              rosServiceCalling={handRosServiceCalling}
+              realTimeHandValues={realTimeLeftHandValues}
+              plannedHandValues={plannedLeftHandValues}
+              type="L"
+              onControlChange={handlePlannedLeftHandChange}
+              onHandSrvCall={handleLeftHandMoveServiceCall}
+            />
+          </div>
+
+          {/* 右侧手掌滑块控制面板 */}
+          <div style={{
+            position: 'absolute',
+            right: '2%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '300px',
+            zIndex: 10
+          }}>
+            <HandSliderControl
+              isInteracting={handIsInteracting}
+              onInteractionChange={onHandIsInteractingChange}
+              rosServiceCalling={handRosServiceCalling}
+              realTimeHandValues={realTimeRightHandValues}
+              plannedHandValues={plannedRightHandValues}
+              type="R"
+              onControlChange={handlePlannedRightHandChange}
+              onHandSrvCall={handleRightHandMoveJServiceCall}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Arm控制模式的滑块控制面板 - 核心改进部分 */}
+      <div>
+        {showRobotArmTarget ? null : (
+          !showHandComponents && !showPresetActions && (
+            <>
+              {/* 左臂滑块控制面板 - 使用新的统一风格组件 */}
+              <div style={{
+                position: 'absolute',
+                left: '2%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '300px',
+                zIndex: 10
+              }}>
+                <ArmSliderControl
+                  isInteracting={armIsInteracting}
+                  onInteractionChange={onArmIsInteractingChange}
+                  rosServiceCalling={armRosServiceCalling}
+                  realTimeArmValues={realTimeLeftArmValues}
+                  plannedArmValues={plannedLeftArmValues}
+                  type="L"
+                  onControlChange={handlePlannedLeftArmChange}
+                  onMoveJSrvCall={handleLeftArmMoveJSrvCall}
+                  isOnTeacherMode={showTeacher !== 2}
+                  // 传递右臂的状态和回调函数
+                  realTimeOtherArmValues={realTimeRightArmValues}
+                  plannedOtherArmValues={plannedRightArmValues}
+                  onOtherMoveJSrvCall={handleRightArmMoveJSrvCall}
+                />
+              </div>
+              
+              {/* 右臂滑块控制面板 - 使用新的统一风格组件 */}
+              <div style={{
+                position: 'absolute',
+                right: '2%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '300px',
+                zIndex: 10
+              }}>
+                <ArmSliderControl
+                  isInteracting={armIsInteracting}
+                  onInteractionChange={onArmIsInteractingChange}
+                  rosServiceCalling={armRosServiceCalling}
+                  realTimeArmValues={realTimeRightArmValues}
+                  plannedArmValues={plannedRightArmValues}
+                  type="R"
+                  onControlChange={handlePlannedRightArmChange}
+                  onMoveJSrvCall={handleRightArmMoveJSrvCall}
+                  isOnTeacherMode={showTeacher !== 2}
+                  // 传递左臂的状态和回调函数
+                  realTimeOtherArmValues={realTimeLeftArmValues}
+                  plannedOtherArmValues={plannedLeftArmValues}
+                  onOtherMoveJSrvCall={handleLeftArmMoveJSrvCall}
+                />
+              </div>
+            </>
+          )
+        )}
+      </div>
+      {/* 新增底部状态面板 */}
+      <StatusPanel 
+        isConnected={isConnected} 
+        errorMessage={errorMessage} 
+        robotState={robotState}
+        robotStateInfo={robotStateInfo}
+      />
+    </div>
+  );
+};
+
+export default App;
+</file>
+
+<file path="App.test.js">
+import { render, screen } from '@testing-library/react';
+import App from './App';
+
+test('renders learn react link', () => {
+  render(<App />);
+  const linkElement = screen.getByText(/learn react/i);
+  expect(linkElement).toBeInTheDocument();
+});
+</file>
+
+<file path="config.js">
+const config = {
+
+    // ROSBridge 配置
+    rosbridge: {
+        ROS_HOST: '172.16.11.238',
+        ROS_PORT: 9090,
+        reconnectionInterval: 5000, // 心跳时间，单位毫秒
+    },
+
+
+
+    // 模型坐标-RobotArmTarget下发至终端模型设置
+    handTargetJointLimits: {
+        leftHand: [
+            { name: "X Position_L", key: "x", id: "x", min: -1.000, max: 1.000},
+            { name: "Y Position_L", key: "y", id: "y", min: -1.000, max: 1.000},
+            { name: "Z Position_L", key: "z", id: "z", min: -1.000, max: 1.000},
+            { name: "X Rotation_L", key: "xR", id: "xR", min: -180, max: 180},
+            { name: "Y Rotation_L", key: "yR", id: "yR", min: -180, max: 180},
+            { name: "Z Rotation_L", key: "zR", id: "zR", min: -180, max: 180},
+          ],
+        rightHand: [
+            { name: "X Position_R", key: "x", id: "x", min: -1.000, max: 1.000 },
+            { name: "Y Position_R", key: "y", id: "y", min: -1.000, max: 1.000 },
+            { name: "Z Position_R", key: "z", id: "z", min: -1.000, max: 1.000 },
+            { name: "X Rotation_R", key: "xR", id: "xR", min: -180, max: 180 },
+            { name: "Y Rotation_R", key: "yR", id: "yR", min: -180, max: 180 },
+            { name: "Z Rotation_R", key: "zR", id: "zR", min: -180, max: 180 },
+          ],
+    },
+
+    // 末端控制步长设置 - RobotArmTarget
+    handTargetStepConfig: {
+        position: {
+            default: 0.003,    // 位置坐标默认步长
+            min: 0.001,        // 最小步长
+            max: 0.01,         // 最大步长
+            step: 0.001        // 步长调整精度
+        },
+        orientation: {
+            default: 15,       // 姿态角度默认步长（度）
+            min: 1,            // 最小步长（度）
+            max: 45,           // 最大步长（度）
+            step: 1            // 步长调整精度（度）
+        }
+    },
+
+
+    // 双臂关节限位设置 - ArmControl
+    armJointLimits: {
+        leftArm: [
+            { name: "Shoulder_Y_L", min: -165.64, max: 64.36 },
+            { name: "Shoulder_X_L", min: 0, max: 119.22 },
+            { name: "Shoulder_Z_L", min: -120.03, max: 120.03 },
+            { name: "Elbow_L", min: -82.82, max: 0 },
+            { name: "Wrist_Z_L", min: -156.15, max: 156.15 },
+            { name: "Wrist_Y_L", min: -45.89, max: 45.89 },
+            { name: "Wrist_X_L", min: -82.82, max: 45.89 },
+        ],
+        rightArm: [
+            { name: "Shoulder_Y_R", min: -165.64, max: 64.36 },
+            { name: "Shoulder_X_R", min: -119.22, max: 0 },
+            { name: "Shoulder_Z_R", min: -120.03, max: 120.03 },
+            { name: "Elbow_R", min: -82.82, max: 0 },
+            { name: "Wrist_Z_R", min: -156.15, max: 156.15 },
+            { name: "Wrist_Y_R", min: -45.89, max: 45.89 },
+            { name: "Wrist_X_R", min: -45.89, max: 82.82 },
+        ],
+    },  
+
+    // 双臂实时状态与规划状态同步设置
+    armSyncInterval: 10, // 单位毫秒
+
+    // 双手关节限位设置 - HandControl
+    handJointLimits: {
+        leftHand: [
+            { name: "thumb_CMC", min: -57.2958, max: 85.9437 },
+            { name: "thumb_IP", min: 0, max: 57.2958 },
+            { name: "index_MCP", min: 0, max: 85.9437 },
+            { name: "middle_MCP", min: 0, max: 85.9437 },
+            { name: "ring_MCP", min: 0, max: 85.9437 },
+            { name: "little_MCP", min: 0, max: 85.9437 },
+        ],
+        rightHand: [
+            { name: "thumb_CMC", min: -57.2958, max: 85.9437 },
+            { name: "thumb_IP", min: 0, max: 57.2958 },
+            { name: "index_MCP", min: 0, max: 85.9437 },
+            { name: "middle_MCP", min: 0, max: 85.9437 },
+            { name: "ring_MCP", min: 0, max: 85.9437 },
+            { name: "little_MCP", min: 0, max: 85.9437 },
+        ],  
+    },
+
+    // 双手实时状态与规划状态同步设置
+    handSyncInterval: 10, // 单位毫秒
+};    
+
+export default config;
+</file>
+
+<file path="index.css">
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+</file>
+
+<file path="index.js">
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import App from './App';
+import reportWebVitals from './reportWebVitals';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+reportWebVitals();
+</file>
+
+<file path="logo.svg">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 841.9 595.3"><g fill="#61DAFB"><path d="M666.3 296.5c0-32.5-40.7-63.3-103.1-82.4 14.4-63.6 8-114.2-20.2-130.4-6.5-3.8-14.1-5.6-22.4-5.6v22.3c4.6 0 8.3.9 11.4 2.6 13.6 7.8 19.5 37.5 14.9 75.7-1.1 9.4-2.9 19.3-5.1 29.4-19.6-4.8-41-8.5-63.5-10.9-13.5-18.5-27.5-35.3-41.6-50 32.6-30.3 63.2-46.9 84-46.9V78c-27.5 0-63.5 19.6-99.9 53.6-36.4-33.8-72.4-53.2-99.9-53.2v22.3c20.7 0 51.4 16.5 84 46.6-14 14.7-28 31.4-41.3 49.9-22.6 2.4-44 6.1-63.6 11-2.3-10-4-19.7-5.2-29-4.7-38.2 1.1-67.9 14.6-75.8 3-1.8 6.9-2.6 11.5-2.6V78.5c-8.4 0-16 1.8-22.6 5.6-28.1 16.2-34.4 66.7-19.9 130.1-62.2 19.2-102.7 49.9-102.7 82.3 0 32.5 40.7 63.3 103.1 82.4-14.4 63.6-8 114.2 20.2 130.4 6.5 3.8 14.1 5.6 22.5 5.6 27.5 0 63.5-19.6 99.9-53.6 36.4 33.8 72.4 53.2 99.9 53.2 8.4 0 16-1.8 22.6-5.6 28.1-16.2 34.4-66.7 19.9-130.1 62-19.1 102.5-49.9 102.5-82.3zm-130.2-66.7c-3.7 12.9-8.3 26.2-13.5 39.5-4.1-8-8.4-16-13.1-24-4.6-8-9.5-15.8-14.4-23.4 14.2 2.1 27.9 4.7 41 7.9zm-45.8 106.5c-7.8 13.5-15.8 26.3-24.1 38.2-14.9 1.3-30 2-45.2 2-15.1 0-30.2-.7-45-1.9-8.3-11.9-16.4-24.6-24.2-38-7.6-13.1-14.5-26.4-20.8-39.8 6.2-13.4 13.2-26.8 20.7-39.9 7.8-13.5 15.8-26.3 24.1-38.2 14.9-1.3 30-2 45.2-2 15.1 0 30.2.7 45 1.9 8.3 11.9 16.4 24.6 24.2 38 7.6 13.1 14.5 26.4 20.8 39.8-6.3 13.4-13.2 26.8-20.7 39.9zm32.3-13c5.4 13.4 10 26.8 13.8 39.8-13.1 3.2-26.9 5.9-41.2 8 4.9-7.7 9.8-15.6 14.4-23.7 4.6-8 8.9-16.1 13-24.1zM421.2 430c-9.3-9.6-18.6-20.3-27.8-32 9 .4 18.2.7 27.5.7 9.4 0 18.7-.2 27.8-.7-9 11.7-18.3 22.4-27.5 32zm-74.4-58.9c-14.2-2.1-27.9-4.7-41-7.9 3.7-12.9 8.3-26.2 13.5-39.5 4.1 8 8.4 16 13.1 24 4.7 8 9.5 15.8 14.4 23.4zM420.7 163c9.3 9.6 18.6 20.3 27.8 32-9-.4-18.2-.7-27.5-.7-9.4 0-18.7.2-27.8.7 9-11.7 18.3-22.4 27.5-32zm-74 58.9c-4.9 7.7-9.8 15.6-14.4 23.7-4.6 8-8.9 16-13 24-5.4-13.4-10-26.8-13.8-39.8 13.1-3.1 26.9-5.8 41.2-7.9zm-90.5 125.2c-35.4-15.1-58.3-34.9-58.3-50.6 0-15.7 22.9-35.6 58.3-50.6 8.6-3.7 18-7 27.7-10.1 5.7 19.6 13.2 40 22.5 60.9-9.2 20.8-16.6 41.1-22.2 60.6-9.9-3.1-19.3-6.5-28-10.2zM310 490c-13.6-7.8-19.5-37.5-14.9-75.7 1.1-9.4 2.9-19.3 5.1-29.4 19.6 4.8 41 8.5 63.5 10.9 13.5 18.5 27.5 35.3 41.6 50-32.6 30.3-63.2 46.9-84 46.9-4.5-.1-8.3-1-11.3-2.7zm237.2-76.2c4.7 38.2-1.1 67.9-14.6 75.8-3 1.8-6.9 2.6-11.5 2.6-20.7 0-51.4-16.5-84-46.6 14-14.7 28-31.4 41.3-49.9 22.6-2.4 44-6.1 63.6-11 2.3 10.1 4.1 19.8 5.2 29.1zm38.5-66.7c-8.6 3.7-18 7-27.7 10.1-5.7-19.6-13.2-40-22.5-60.9 9.2-20.8 16.6-41.1 22.2-60.6 9.9 3.1 19.3 6.5 28.1 10.2 35.4 15.1 58.3 34.9 58.3 50.6-.1 15.7-23 35.6-58.4 50.6zM320.8 78.4z"/><circle cx="420.9" cy="296.5" r="45.7"/><path d="M520.5 78.1z"/></g></svg>
+</file>
+
+<file path="reportWebVitals.js">
+const reportWebVitals = onPerfEntry => {
+  if (onPerfEntry && onPerfEntry instanceof Function) {
+    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+      getCLS(onPerfEntry);
+      getFID(onPerfEntry);
+      getFCP(onPerfEntry);
+      getLCP(onPerfEntry);
+      getTTFB(onPerfEntry);
+    });
+  }
+};
+
+export default reportWebVitals;
+</file>
+
+<file path="setupTests.js">
+// jest-dom adds custom jest matchers for asserting on DOM nodes.
+// allows you to do things like:
+// expect(element).toHaveTextContent(/react/i)
+// learn more: https://github.com/testing-library/jest-dom
+import '@testing-library/jest-dom';
+</file>
+
+</files>
