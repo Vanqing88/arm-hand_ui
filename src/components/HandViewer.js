@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import URDFLoader from 'urdf-loader';
+import { createVRLighting, disposeVRLighting } from './VRLighting';
 
 const HandViewer = ({ 
   isInteracting,
@@ -54,13 +55,8 @@ const HandViewer = ({
     const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current });
     renderer.setSize(window.innerHeight / 3.6, window.innerHeight / 3.6);
 
-    const light = new THREE.AmbientLight(0x404040);
-    const directionalLight0 = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight0.position.set(1, 1, 1).normalize();
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight1.position.set(1, 1, -1).normalize();
-
-    scene.add(light, directionalLight0, directionalLight1);
+    // 使用VR光照配置
+    const lights = createVRLighting(scene);
 
     const urdf = type === 'L' ? './lefthand/urdf/lefthand.urdf' : './righthand/urdf/righthand.urdf';
     // 加载URDF模型
@@ -101,6 +97,8 @@ const HandViewer = ({
 
     return () => {
       if (renderer) renderer.dispose();
+      // 清理VR光照
+      disposeVRLighting(lights);
     };
   }, [type]);
 

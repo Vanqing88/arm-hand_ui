@@ -8,6 +8,7 @@ import ShowCoordinates from './ShowCoordinates';
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader';
 import config from "../config";
 import { loadDualRobots, batchSetTransparency } from './RobotTransparencyUtils';
+import { createVRLighting, disposeVRLighting } from './VRLighting';
 
 const RobotViewer = ({
   isInteracting,
@@ -383,12 +384,8 @@ const RobotViewer = ({
     renderer.sortObjects = true; // 启用对象排序
     renderer.alpha = true; // 启用alpha通道
 
-    const light = new THREE.AmbientLight(0x808080);
-    scene.add(light);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 2, 5).normalize();
-    scene.add(directionalLight);
+    // 使用VR光照配置
+    const lights = createVRLighting(scene);
 
     // 设置拖拽控制对象
     const objects = [];
@@ -471,6 +468,8 @@ const RobotViewer = ({
 
     return () => {
       if (renderer) renderer.dispose();
+      // 清理VR光照
+      disposeVRLighting(lights);
     };
   }, [buildJointLinkMapping]);
 

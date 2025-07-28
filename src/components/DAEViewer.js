@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import DAEViewerControls from './DAEViewerControls';
+import { createVRLighting, disposeVRLighting } from './VRLighting';
 
 const DAEViewer = () => {
   const canvasRef = useRef(null);
@@ -90,16 +91,8 @@ const DAEViewer = () => {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    // 设置光照
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(5, 5, 5).normalize();
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    scene.add(directionalLight);
+    // 使用VR光照配置
+    const lights = createVRLighting(scene);
 
     // 添加相机控制
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -146,6 +139,8 @@ const DAEViewer = () => {
       if (renderer) {
         renderer.dispose();
       }
+      // 清理VR光照
+      disposeVRLighting(lights);
       // 清理已加载的模型
       loadedModelsRef.current.forEach((model) => {
         if (model && model.traverse) {
