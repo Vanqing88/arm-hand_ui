@@ -377,6 +377,11 @@ const RobotViewer = ({
 
     const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    // 配置透明材质渲染
+    renderer.setClearColor(0xf0f0f0, 1);
+    renderer.sortObjects = true; // 启用对象排序
+    renderer.alpha = true; // 启用alpha通道
 
     const light = new THREE.AmbientLight(0x808080);
     scene.add(light);

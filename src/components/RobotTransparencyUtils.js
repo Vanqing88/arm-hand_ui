@@ -20,6 +20,13 @@ export const setRobotTransparency = (robot, opacity = 0.5, transparent = true) =
         
         // 设置深度写入（对透明材质很重要）
         child.material.depthWrite = !transparent;
+        
+        // 设置渲染顺序，确保透明物体正确渲染
+        if (transparent) {
+          child.renderOrder = 1; // 透明物体后渲染
+        } else {
+          child.renderOrder = 0; // 不透明物体先渲染
+        }
       }
       // 处理材质数组
       else if (Array.isArray(child.material)) {
@@ -31,13 +38,20 @@ export const setRobotTransparency = (robot, opacity = 0.5, transparent = true) =
           newMat.depthWrite = !transparent;
           return newMat;
         });
+        
+        // 设置渲染顺序
+        if (transparent) {
+          child.renderOrder = 1;
+        } else {
+          child.renderOrder = 0;
+        }
       }
     }
   });
 };
 
 // 创建透明机器人副本函数
-export const createTransparentRobotCopy = (originalRobot, opacity = 0.4) => {
+export const createTransparentRobotCopy = (originalRobot, opacity = 0.5) => {
   // 深度克隆整个机器人
   const robotCopy = originalRobot.clone(true);
   
@@ -50,6 +64,9 @@ export const createTransparentRobotCopy = (originalRobot, opacity = 0.4) => {
       child.material.opacity = opacity;
       child.material.depthWrite = false;
       child.material.needsUpdate = true;
+      
+      // 设置渲染顺序
+      child.renderOrder = 1; // 透明物体后渲染
     }
   });
   
@@ -68,7 +85,7 @@ export const loadDualRobots = (scene, urdfPath, onLoadComplete) => {
     // 等待加载完成后设置透明度
     setTimeout(() => {
       setRobotTransparency(robot1, 0.5, true);
-    }, 500);
+    }, 800);
     
     scene.add(robot1);
     robots.realtime = robot1;
