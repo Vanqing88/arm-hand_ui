@@ -12,6 +12,8 @@ import Teacher from './components/Teacher';
 import config from "./config";
 import { Quaternion, Euler } from 'three';
 import * as THREE from 'three';
+import CollisionTest from './components/CollisionTest';
+import SimpleCollisionTest from './components/SimpleCollisionTest';
 
 // 状态指示器组件
 const StatusIndicator = ({ status }) => {
@@ -2147,6 +2149,10 @@ const App = () => {
             setCoordinatesTemp={setCoordinatesTemp}
             handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
             handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
+                                 // 碰撞检测参数
+                     onCollisionStatusChange={(status) => {
+                       console.log('手臂控制模式 - 机器人碰撞状态:', status);
+                     }}
           />
         </div>
       )}
@@ -2175,6 +2181,10 @@ const App = () => {
             setCoordinatesTemp={setCoordinatesTemp}
             handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
             handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
+                                 // 碰撞检测参数
+                     onCollisionStatusChange={(status) => {
+                       console.log('末端控制模式 - 机器人碰撞状态:', status);
+                     }}
           />
 
           {/* 左侧末端控制面板 - 使用重构后的RobotArmTarget组件 */}
@@ -2243,6 +2253,10 @@ const App = () => {
             setCoordinatesTemp={setCoordinatesTemp}
             handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
             handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
+                                 // 碰撞检测参数
+                     onCollisionStatusChange={(status) => {
+                       console.log('预设动作模式 - 机器人碰撞状态:', status);
+                     }}
           />
 
           {/* 左侧预设动作控制面板 - 动作1-6 */}

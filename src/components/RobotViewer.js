@@ -9,6 +9,8 @@ import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader';
 import config from "../config";
 import { loadDualRobots, batchSetTransparency } from './RobotTransparencyUtils';
 import { createVRLighting, disposeVRLighting } from './VRLighting';
+import RobotCollisionDetector from './RobotCollisionDetector';
+import RobotSelfCollisionDetector from './RobotSelfCollisionDetector';
 
 const RobotViewer = ({
   isInteracting,
@@ -29,6 +31,10 @@ const RobotViewer = ({
   setCoordinatesTemp,
   handleLeftArmMoveLSrvCall,
   handleRightArmMoveLSrvCall,
+                   // 碰撞检测相关属性
+                 enableCollisionDetection = config.collisionDetection.enabled,
+                 collisionThreshold = config.collisionDetection.threshold,
+                 onCollisionStatusChange,
 }) => {
   const canvasRef = useRef(null);
   const robotRef = useRef(null);
@@ -44,6 +50,16 @@ const RobotViewer = ({
   const updateInterval = 100;
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
+  
+  // 碰撞检测状态
+  const [collisionStatus, setCollisionStatus] = useState({
+    hasCollision: false,
+    hasWarning: false,
+    collisionCount: 0,
+    warningCount: 0,
+    totalCollisions: 0,
+    details: []
+  });
 
   // 存储关节-链接映射关系和原始材质
   const jointLinkMappingRef = useRef(new Map());
@@ -60,6 +76,14 @@ const RobotViewer = ({
   useEffect(() => {
     isInteractingRef.current = isInteracting;
   }, [isInteracting]);
+
+  // 碰撞检测回调函数
+  const handleCollisionStatusChange = useCallback((newStatus) => {
+    setCollisionStatus(newStatus);
+    if (onCollisionStatusChange) {
+      onCollisionStatusChange(newStatus);
+    }
+  }, [onCollisionStatusChange]);
 
   const realTimeLeftArmValuesRef = useRef(realTimeLeftArmValues);
   useEffect(() => {
@@ -663,8 +687,35 @@ const RobotViewer = ({
   }, [onMouseDown, onMouseMove, onMouseUp]);
 
   return (
-    <div>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <canvas ref={canvasRef} />
+      
+      {/* 规划模型自碰撞检测组件 */}
+      {enableCollisionDetection && sceneReady && robots.planned && (
+        <RobotSelfCollisionDetector
+          robot={robots.planned}
+          isEnabled={enableCollisionDetection}
+          threshold={collisionThreshold}
+          onCollisionChange={handleCollisionStatusChange}
+        />
+      )}
+
+      {/* 机器人手臂目标控制 */}
+      {showRobotArmTarget && (
+        <RobotArmTarget
+          L_HandRef={L_HandRef}
+          R_HandRef={R_HandRef}
+          CoordinatesTemp={CoordinatesTemp}
+          setCoordinatesTemp={setCoordinatesTemp}
+          handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
+          handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
+        />
+      )}
+
+      {/* 坐标显示 */}
+      {CoordinatesTemp.show && (
+        <ShowCoordinates CoordinatesTemp={CoordinatesTemp} />
+      )}
     </div>
   );
 };
