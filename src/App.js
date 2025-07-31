@@ -12,8 +12,6 @@ import Teacher from './components/Teacher';
 import config from "./config";
 import { Quaternion, Euler } from 'three';
 import * as THREE from 'three';
-import CollisionTest from './components/CollisionTest';
-import SimpleCollisionTest from './components/SimpleCollisionTest';
 
 // 状态指示器组件
 const StatusIndicator = ({ status }) => {
