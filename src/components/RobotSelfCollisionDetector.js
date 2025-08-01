@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import * as THREE from 'three';
-import { robotCollisionUtils, CollisionConfig } from './RobotCollisionUtils';
+import { robotCollisionUtils } from './RobotCollisionUtils';
 import config from '../config';
 
 /**
@@ -93,37 +92,17 @@ const RobotSelfCollisionDetector = ({
   };
 
   /**
-   * 计算两个包围盒之间的最小距离
+   * 获取网格所属的关节名称
    */
-  const calculateBoxDistance = (box1, box2) => {
-    // 如果两个包围盒相交，距离为0
-    if (box1.intersectsBox(box2)) {
-      return 0;
+  const getJointName = (mesh) => {
+    let current = mesh;
+    while (current) {
+      if (current.isURDFJoint) {
+        return current.name;
+      }
+      current = current.parent;
     }
-
-    // 计算两个包围盒中心点
-    const center1 = new THREE.Vector3();
-    const center2 = new THREE.Vector3();
-    box1.getCenter(center1);
-    box2.getCenter(center2);
-
-    // 计算中心点距离
-    const centerDistance = center1.distanceTo(center2);
-
-    // 计算两个包围盒的尺寸
-    const size1 = new THREE.Vector3();
-    const size2 = new THREE.Vector3();
-    box1.getSize(size1);
-    box2.getSize(size2);
-
-    // 计算两个包围盒对角线长度的一半
-    const halfDiagonal1 = size1.length() * 0.5;
-    const halfDiagonal2 = size2.length() * 0.5;
-
-    // 最小距离 = 中心点距离 - 两个对角线长度的一半
-    const minDistance = Math.max(0, centerDistance - halfDiagonal1 - halfDiagonal2);
-
-    return minDistance;
+    return 'unknown_joint';
   };
 
   /**
@@ -145,14 +124,33 @@ const RobotSelfCollisionDetector = ({
       // 为机器人构建BVH
       await robotCollisionUtils.buildBVHForRobot(robot, 'self_collision');
       
+      // 验证BVH构建结果
+      const validation = robotCollisionUtils.validateBVHData('self_collision');
+      console.log('BVH验证结果:', validation);
+      
+      if (!validation.isValid) {
+        console.warn('BVH数据验证失败:', validation);
+        if (validation.invalidBVHs.length > 0) {
+          console.warn('无效BVH的链接:', validation.invalidBVHs);
+        }
+        if (validation.missingGeometry.length > 0) {
+          console.warn('缺失几何体的链接:', validation.missingGeometry);
+        }
+      }
+      
       // 获取网格分组
       const meshGroups = getMeshGroupsByLink(robot);
       robotMeshesRef.current = Array.from(meshGroups.entries());
+      
+      // 获取BVH统计信息
+      const stats = robotCollisionUtils.getBVHStats();
+      console.log('BVH统计信息:', stats);
 
       setIsInitialized(true);
       console.log('自碰撞检测系统初始化完成');
       console.log('检测对数量:', pairs.length);
       console.log('网格分组数量:', meshGroups.size);
+      console.log('BVH覆盖率:', stats.robotStats['self_collision']?.bvhCoverage || '0%');
       
       return true;
     } catch (error) {
@@ -160,6 +158,91 @@ const RobotSelfCollisionDetector = ({
       return false;
     }
   }, [robot, getSelfCollisionPairs, getMeshGroupsByLink]);
+
+  /**
+   * 检测两个网格之间的碰撞
+   */
+  const checkMeshPairCollision = useCallback((mesh1, mesh2, threshold, priority) => {
+    if (!mesh1 || !mesh2 || mesh1 === mesh2) {
+      return null;
+    }
+
+    try {
+      // 检查是否是默认相连的部件（排除这些碰撞）
+      const link1 = getLinkName(mesh1);
+      const link2 = getLinkName(mesh2);
+      
+      // 使用config中定义的默认相连部件
+      const connectedParts = config.collisionDetection.connectedParts;
+      
+      // 检查是否是默认相连的部件
+      const isConnected = connectedParts.some(([part1, part2]) => 
+        (link1 === part1 && link2 === part2) || (link1 === part2 && link2 === part1)
+      );
+      
+      if (isConnected) {
+        return null; // 跳过默认相连的部件
+      }
+
+      // 创建网格数据对象以使用统一的碰撞检测方法
+      const mesh1Data = {
+        mesh: mesh1,
+        bvh: mesh1.geometry?.boundsTree,
+        linkName: link1,
+        jointName: getJointName(mesh1)
+      };
+
+      const mesh2Data = {
+        mesh: mesh2,
+        bvh: mesh2.geometry?.boundsTree,
+        linkName: link2,
+        jointName: getJointName(mesh2)
+      };
+
+      // 使用robotCollisionUtils的改进碰撞检测方法
+      const collision = robotCollisionUtils.checkMeshCollision(mesh1Data, mesh2Data, threshold);
+      
+      if (collision) {
+        // 根据优先级调整阈值和严重性
+        const priorityConfig = config.collisionDetection.priorities[priority];
+        const adjustedThreshold = priorityConfig ? priorityConfig.threshold : threshold;
+        
+        // 如果距离超过优先级阈值，则不认为是碰撞
+        if (collision.distance > adjustedThreshold) {
+          return null;
+        }
+
+        return {
+          ...collision,
+          priority: priority,
+          detectionMethod: collision.detectionMethod || 'BVH_SELF_COLLISION'
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.warn('网格碰撞检测过程中出错:', error);
+      return null;
+    }
+  }, []);
+
+  /**
+   * 更新自碰撞可视化
+   */
+  const updateSelfCollisionVisualization = useCallback((collisions) => {
+    // 重置材质
+    robotCollisionUtils.resetAllMaterials();
+
+    // 应用碰撞高亮 - 只对规划模型（不透明模型）进行高亮
+    for (const collision of collisions) {
+      // 使用蓝色材质高亮碰撞区域
+      const blueMaterial = robotCollisionUtils.collisionMaterials.get('collision');
+      if (blueMaterial && collision.mesh1 && collision.mesh2) {
+        collision.mesh1.material = blueMaterial.clone();
+        collision.mesh2.material = blueMaterial.clone();
+      }
+    }
+  }, []);
 
   /**
    * 执行自碰撞检测
@@ -263,95 +346,20 @@ const RobotSelfCollisionDetector = ({
         if (highPriorityCollisions.length > 0) {
           console.warn('高优先级碰撞:', highPriorityCollisions.length, '个');
         }
+
+        // 显示检测方法统计  
+        const methodStats = {};
+        allCollisions.forEach(collision => {
+          const method = collision.detectionMethod || 'UNKNOWN';
+          methodStats[method] = (methodStats[method] || 0) + 1;
+        });
+        console.log('检测方法统计:', methodStats);
       }
 
     } catch (error) {
       console.error('自碰撞检测执行失败:', error);
     }
-  }, [isInitialized, isEnabled, threshold, detectionInterval, onCollisionChange, selfCollisionPairs, getMeshGroupsByLink]);
-
-  /**
-   * 检测两个网格之间的碰撞
-   */
-  const checkMeshPairCollision = (mesh1, mesh2, threshold, priority) => {
-    if (!mesh1 || !mesh2 || mesh1 === mesh2) {
-      return null;
-    }
-
-    try {
-      // 检查是否是默认相连的部件（排除这些碰撞）
-      const link1 = getLinkName(mesh1);
-      const link2 = getLinkName(mesh2);
-      
-      // 使用config中定义的默认相连部件
-      const connectedParts = config.collisionDetection.connectedParts;
-      
-      // 检查是否是默认相连的部件
-      const isConnected = connectedParts.some(([part1, part2]) => 
-        (link1 === part1 && link2 === part2) || (link1 === part2 && link2 === part1)
-      );
-      
-      if (isConnected) {
-        return null; // 跳过默认相连的部件
-      }
-
-      // 更新世界矩阵
-      mesh1.updateMatrixWorld(true);
-      mesh2.updateMatrixWorld(true);
-
-      // 计算包围盒
-      const box1 = new THREE.Box3().setFromObject(mesh1);
-      const box2 = new THREE.Box3().setFromObject(mesh2);
-
-      // 快速包围盒检测
-      if (!box1.intersectsBox(box2)) {
-        return null;
-      }
-
-      // 计算两个包围盒的最小距离
-      const distance = calculateBoxDistance(box1, box2);
-      
-      // 根据优先级调整阈值
-      const priorityConfig = config.collisionDetection.priorities[priority];
-      const adjustedThreshold = priorityConfig ? priorityConfig.threshold : threshold;
-      
-      if (distance <= adjustedThreshold) {
-        return {
-          mesh1: mesh1,
-          mesh2: mesh2,
-          linkName1: link1,
-          linkName2: link2,
-          distance: distance,
-          severity: 'collision',
-          priority: priority,
-          timestamp: Date.now()
-        };
-      }
-
-      return null;
-    } catch (error) {
-      console.warn('网格碰撞检测过程中出错:', error);
-      return null;
-    }
-  };
-
-  /**
-   * 更新自碰撞可视化
-   */
-  const updateSelfCollisionVisualization = (collisions) => {
-    // 重置材质
-    robotCollisionUtils.resetAllMaterials();
-
-    // 应用碰撞高亮 - 只对规划模型（不透明模型）进行高亮
-    for (const collision of collisions) {
-      // 使用蓝色材质高亮碰撞区域
-      const blueMaterial = robotCollisionUtils.collisionMaterials.get('collision');
-      if (blueMaterial && collision.mesh1 && collision.mesh2) {
-        collision.mesh1.material = blueMaterial.clone();
-        collision.mesh2.material = blueMaterial.clone();
-      }
-    }
-  };
+  }, [isInitialized, isEnabled, threshold, detectionInterval, onCollisionChange, selfCollisionPairs, getMeshGroupsByLink, updateSelfCollisionVisualization, checkMeshPairCollision]);
 
   /**
    * 启动持续自碰撞检测
@@ -424,7 +432,7 @@ const RobotSelfCollisionDetector = ({
     detectionInterval,
     selfCollisionPairs,
     
-    // 控制方法
+    // 提供给子组件的API
     start: startSelfCollisionDetection,
     stop: stopSelfCollisionDetection,
     trigger: performSelfCollisionDetection,
@@ -433,6 +441,11 @@ const RobotSelfCollisionDetector = ({
     // 配置方法
     setThreshold: (newThreshold) => threshold = newThreshold,
     setInterval: setDetectionInterval,
+    
+    // 调试和统计方法
+    getBVHStats: () => robotCollisionUtils.getBVHStats(),
+    validateBVH: () => robotCollisionUtils.validateBVHData('self_collision'),
+    getCollisionHistory: () => robotCollisionUtils.getAllCollisions()
   };
 
   // 如果提供了children，则作为render prop使用
@@ -513,6 +526,28 @@ const SelfCollisionStatusDisplay = ({
         <div style={{ fontSize: '12px', color: '#ccc' }}>
           <div>检测对: {api.selfCollisionPairs?.length || 0}</div>
           <div>状态: {isDetecting ? '运行中' : '已停止'}</div>
+          <div>
+            <button 
+              onClick={() => {
+                const stats = api.getBVHStats();
+                const validation = api.validateBVH();
+                console.log('BVH统计:', stats);
+                console.log('BVH验证:', validation);
+              }}
+              style={{
+                fontSize: '10px',
+                padding: '2px 4px',
+                marginTop: '5px',
+                backgroundColor: '#333',
+                color: '#fff',
+                border: '1px solid #555',
+                borderRadius: '3px',
+                cursor: 'pointer'
+              }}
+            >
+              调试信息
+            </button>
+          </div>
         </div>
       )}
 
