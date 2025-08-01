@@ -98,7 +98,7 @@ const config = {
     collisionDetection: {
         // 基本设置
         enabled: true,                    // 是否启用碰撞检测
-        threshold: 1,                  // 碰撞检测阈值（米）
+        threshold: 0,                  // 碰撞检测阈值（米）
         detectionInterval: 100,           // 检测间隔（毫秒）
         
         // 优先级设置
