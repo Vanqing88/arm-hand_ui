@@ -220,6 +220,9 @@ const RobotSelfCollisionDetector = ({
    * 更新自碰撞可视化
    */
   const updateSelfCollisionVisualization = useCallback((collisions) => {
+    // 清除所有碰撞状态标记
+    robotCollisionUtils.clearCollisionStates();
+    
     // 重置材质
     robotCollisionUtils.resetAllMaterials();
 
@@ -228,6 +231,9 @@ const RobotSelfCollisionDetector = ({
       // 使用蓝色材质高亮碰撞区域
       const blueMaterial = robotCollisionUtils.collisionMaterials.get('collision');
       if (blueMaterial && collision.mesh1 && collision.mesh2) {
+        // 标记该网格为碰撞状态，避免被关节限位颜色覆盖
+        collision.mesh1.userData.isCollisionState = true;
+        collision.mesh2.userData.isCollisionState = true;
         collision.mesh1.material = blueMaterial.clone();
         collision.mesh2.material = blueMaterial.clone();
       }

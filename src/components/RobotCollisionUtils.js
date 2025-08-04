@@ -388,10 +388,13 @@ export class RobotCollisionUtils {
    * @param {Array} collisions - 碰撞结果数组
    */
   updateCollisionVisualization(collisions) {
+    // 清除所有碰撞状态标记
+    this.clearCollisionStates();
+    
     // 重置所有网格材质
     this.resetAllMaterials();
 
-    // 应用碰撞高亮
+    // 应用碰撞高亮 - 碰撞检测颜色优先级最高
     for (const collision of collisions) {
       const materialType = collision.severity === 'collision' ? 'collision' : 'warning';
       const material = this.collisionMaterials.get(materialType);
@@ -399,9 +402,13 @@ export class RobotCollisionUtils {
       if (material) {
         // 高亮两个碰撞的网格
         if (collision.mesh1) {
+          // 标记该网格为碰撞状态，避免被关节限位颜色覆盖
+          collision.mesh1.userData.isCollisionState = true;
           collision.mesh1.material = material.clone();
         }
         if (collision.mesh2) {
+          // 标记该网格为碰撞状态，避免被关节限位颜色覆盖
+          collision.mesh2.userData.isCollisionState = true;
           collision.mesh2.material = material.clone();
         }
       }
@@ -417,11 +424,27 @@ export class RobotCollisionUtils {
       this.robotBVHs.forEach(robotData => {
         for (const meshData of robotData.meshes) {
           if (meshData.mesh.uuid === meshUuid) {
-            meshData.mesh.material = originalMaterial.clone();
+            // 检查该网格是否处于碰撞状态，如果是则不重置
+            if (!meshData.mesh.userData.isCollisionState) {
+              meshData.mesh.material = originalMaterial.clone();
+            }
             return;
           }
         }
       });
+    });
+  }
+
+  /**
+   * 清除所有碰撞状态标记
+   */
+  clearCollisionStates() {
+    this.robotBVHs.forEach(robotData => {
+      for (const meshData of robotData.meshes) {
+        if (meshData.mesh.userData.isCollisionState) {
+          delete meshData.mesh.userData.isCollisionState;
+        }
+      }
     });
   }
 

@@ -338,6 +338,12 @@ const RobotViewer = ({
           const isHandMesh = isHandRelatedMesh(child, link);
           
           if (!isHandMesh) {
+            // 检查该网格是否处于碰撞状态，如果是则不应用关节限位颜色
+            if (child.userData.isCollisionState) {
+              // console.log(`跳过${robotType}模型碰撞网格 ${child.uuid} 的关节限位颜色更新`);
+              return;
+            }
+            
             if (status === 'normal') {
               // 恢复原始材质
               const originalMaterial = targetMaterialsRef.current.get(child.uuid);
