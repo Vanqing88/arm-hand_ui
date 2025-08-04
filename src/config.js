@@ -100,47 +100,28 @@ const config = {
         enabled: true,                    // 是否启用碰撞检测
         threshold: 0,                  // 碰撞检测阈值（米）
         detectionInterval: 100,           // 检测间隔（毫秒）
-        
-        // 优先级设置
-        priorities: {
-            high: {
-                threshold: 0.01,          // 高优先级碰撞阈值
-                color: 0xe74c3c,          // 红色
-                description: '手臂交叉、关键碰撞'
-            },
-            medium: {
-                threshold: 0.015,         // 中优先级碰撞阈值
-                color: 0xf39c12,          // 橙色
-                description: '头部碰撞、腿部交叉'
-            },
-            low: {
-                threshold: 0.02,          // 低优先级碰撞阈值
-                color: 0x27ae60,          // 绿色
-                description: '手臂与腿部碰撞'
-            }
-        },
 
         // 碰撞检测对配置
         collisionPairs: [
             // 左臂与右臂（手臂交叉碰撞）
-            { part1: 'leftArm', part2: 'rightArm', priority: 'high' },
+            { part1: 'leftArm', part2: 'rightArm'},
             
             // 左臂与头部（手臂与头部碰撞）
-            { part1: 'leftArm', part2: 'head', priority: 'medium' },
-            { part1: 'leftArm', part2: 'torso', priority: 'medium' },
+            { part1: 'leftArm', part2: 'head'},
+            { part1: 'leftArm', part2: 'torso'},
             
             // 右臂与头部（手臂与头部碰撞）
-            { part1: 'rightArm', part2: 'head', priority: 'medium' },
-            { part1: 'rightArm', part2: 'torso', priority: 'medium' },
+            { part1: 'rightArm', part2: 'head'},
+            { part1: 'rightArm', part2: 'torso'},
             
             // 腿部之间的碰撞
-            { part1: 'leftLeg', part2: 'rightLeg', priority: 'medium' },
+            { part1: 'leftLeg', part2: 'rightLeg'},
             
             // 手臂与腿部（手臂下垂时可能碰撞）
-            { part1: 'leftArm', part2: 'leftLeg', priority: 'low' },
-            { part1: 'leftArm', part2: 'rightLeg', priority: 'low' },
-            { part1: 'rightArm', part2: 'leftLeg', priority: 'low' },
-            { part1: 'rightArm', part2: 'rightLeg', priority: 'low' },
+            { part1: 'leftArm', part2: 'leftLeg'},
+            { part1: 'leftArm', part2: 'rightLeg'},
+            { part1: 'rightArm', part2: 'leftLeg'},
+            { part1: 'rightArm', part2: 'rightLeg'},
         ],
 
         // 默认相连的部件（排除这些碰撞检测）

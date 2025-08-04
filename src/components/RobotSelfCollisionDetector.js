@@ -162,7 +162,7 @@ const RobotSelfCollisionDetector = ({
   /**
    * 检测两个网格之间的碰撞
    */
-  const checkMeshPairCollision = useCallback((mesh1, mesh2, threshold, priority) => {
+  const checkMeshPairCollision = useCallback((mesh1, mesh2, threshold) => {
     if (!mesh1 || !mesh2 || mesh1 === mesh2) {
       return null;
     }
@@ -203,18 +203,8 @@ const RobotSelfCollisionDetector = ({
       const collision = robotCollisionUtils.checkMeshCollision(mesh1Data, mesh2Data, threshold);
       
       if (collision) {
-        // 根据优先级调整阈值和严重性
-        const priorityConfig = config.collisionDetection.priorities[priority];
-        const adjustedThreshold = priorityConfig ? priorityConfig.threshold : threshold;
-        
-        // 如果距离超过优先级阈值，则不认为是碰撞
-        if (collision.distance > adjustedThreshold) {
-          return null;
-        }
-
         return {
           ...collision,
-          priority: priority,
           detectionMethod: collision.detectionMethod || 'BVH_SELF_COLLISION'
         };
       }
@@ -269,7 +259,7 @@ const RobotSelfCollisionDetector = ({
 
       // 检测每个碰撞对
       for (const pair of selfCollisionPairs) {
-        const { links1, links2, priority } = pair;
+        const { links1, links2 } = pair;
         
         // 获取对应的网格
         for (const link1 of links1) {
@@ -289,10 +279,9 @@ const RobotSelfCollisionDetector = ({
                   continue;
                 }
                 
-                const collision = checkMeshPairCollision(mesh1, mesh2, threshold, priority);
+                const collision = checkMeshPairCollision(mesh1, mesh2, threshold);
                 if (collision) {
                   collision.pairType = `${pair.part1}_vs_${pair.part2}`;
-                  collision.priority = priority;
                   collision.collisionKey = collisionKey;
                   allCollisions.push(collision);
                   collisionSet.add(collisionKey);
@@ -567,9 +556,6 @@ const SelfCollisionStatusDisplay = ({
             .map((detail, index) => (
               <div key={index}>
                 {detail.linkName1} ↔ {detail.linkName2}
-                <span style={{ fontSize: '10px', color: '#ccc' }}>
-                  ({detail.priority})
-                </span>
               </div>
             ))
           }

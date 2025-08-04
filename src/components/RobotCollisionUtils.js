@@ -145,40 +145,6 @@ export class RobotCollisionUtils {
   }
 
   /**
-   * 计算两个包围盒之间的最小距离
-   */
-  calculateBoxDistance(box1, box2) {
-    // 如果两个包围盒相交，距离为0
-    if (box1.intersectsBox(box2)) {
-      return 0;
-    }
-
-    // 计算两个包围盒中心点
-    const center1 = new THREE.Vector3();
-    const center2 = new THREE.Vector3();
-    box1.getCenter(center1);
-    box2.getCenter(center2);
-
-    // 计算中心点距离
-    const centerDistance = center1.distanceTo(center2);
-
-    // 计算两个包围盒的尺寸
-    const size1 = new THREE.Vector3();
-    const size2 = new THREE.Vector3();
-    box1.getSize(size1);
-    box2.getSize(size2);
-
-    // 计算两个包围盒对角线长度的一半
-    const halfDiagonal1 = size1.length() * 0.5;
-    const halfDiagonal2 = size2.length() * 0.5;
-
-    // 最小距离 = 中心点距离 - 两个对角线长度的一半
-    const minDistance = Math.max(0, centerDistance - halfDiagonal1 - halfDiagonal2);
-
-    return minDistance;
-  }
-
-  /**
    * 检测两个机器人之间的碰撞
    * @param {string} robotId1 - 第一个机器人ID
    * @param {string} robotId2 - 第二个机器人ID
@@ -256,8 +222,6 @@ export class RobotCollisionUtils {
       const hasDirectCollision = bvh1.intersectsGeometry(mesh2.geometry, transformMatrix);
       
       if (hasDirectCollision) {
-        // 如果有直接碰撞，计算精确距离
-        const preciseDistance = this.calculatePreciseDistance(mesh1Data, mesh2Data, transformMatrix);
         
         return {
           mesh1: mesh1,
@@ -266,88 +230,15 @@ export class RobotCollisionUtils {
           linkName2: mesh2Data.linkName,
           jointName1: mesh1Data.jointName,
           jointName2: mesh2Data.jointName,
-          distance: preciseDistance,
-          severity: preciseDistance <= 0 ? 'collision' : 'warning',
           detectionMethod: 'BVH_DIRECT',
           timestamp: Date.now()
         };
-      }
-
-      // 如果没有直接碰撞，但AABB相交，检查是否在警告范围内
-      if (threshold > 0) {
-        const aabbDistance = this.calculateBoxDistance(box1, box2);
-        if (aabbDistance <= threshold) {
-          // 使用精确距离计算来确认是否在警告范围内
-          const preciseDistance = this.calculatePreciseDistance(mesh1Data, mesh2Data, transformMatrix);
-          
-          if (preciseDistance <= threshold) {
-            return {
-              mesh1: mesh1,
-              mesh2: mesh2,
-              linkName1: mesh1Data.linkName,
-              linkName2: mesh2Data.linkName,
-              jointName1: mesh1Data.jointName,
-              jointName2: mesh2Data.jointName,
-              distance: preciseDistance,
-              severity: 'warning',
-              detectionMethod: 'BVH_PROXIMITY',
-              timestamp: Date.now()
-            };
-          }
-        }
       }
 
       return null;
     } catch (error) {
       console.warn('BVH碰撞检测过程中出错，回退到AABB检测:', error);
       return this.fallbackAABBCollisionCheck(mesh1Data, mesh2Data, threshold);
-    }
-  }
-
-  /**
-   * 计算两个网格间的精确距离
-   * @param {Object} mesh1Data - 第一个网格数据
-   * @param {Object} mesh2Data - 第二个网格数据
-   * @param {THREE.Matrix4} transformMatrix - 变换矩阵（可选）
-   * @returns {number} 精确距离
-   */
-  calculatePreciseDistance(mesh1Data, mesh2Data, transformMatrix = null) {
-    const { mesh: mesh1, bvh: bvh1 } = mesh1Data;
-    const { mesh: mesh2, bvh: bvh2 } = mesh2Data;
-
-    if (!bvh1 || !bvh2) {
-      // 回退到包围盒距离计算
-      const box1 = new THREE.Box3().setFromObject(mesh1);
-      const box2 = new THREE.Box3().setFromObject(mesh2);
-      return this.calculateBoxDistance(box1, box2);
-    }
-
-    try {
-      // 如果没有提供变换矩阵，则计算
-      if (!transformMatrix) {
-        const inverseMatrix1 = mesh1.matrixWorld.clone().invert();
-        transformMatrix = mesh2.matrixWorld.clone().premultiply(inverseMatrix1);
-      }
-
-      const target1 = {}; // mesh1上的最近点（BVH坐标系）
-      const target2 = {}; // mesh2上的最近点（几何体坐标系）
-      
-      // 使用closestPointToGeometry进行精确距离计算
-      const result = bvh1.closestPointToGeometry(
-        mesh2.geometry, 
-        transformMatrix, 
-        target1, 
-        target2,
-        0,        // minThreshold
-        Infinity  // maxThreshold
-      );
-
-      return result?.distance ?? Infinity;
-    } catch (error) {
-      console.warn('精确距离计算失败，回退到包围盒距离:', error);
-      const box1 = new THREE.Box3().setFromObject(mesh1);
-      const box2 = new THREE.Box3().setFromObject(mesh2);
-      return this.calculateBoxDistance(box1, box2);
     }
   }
 
@@ -375,26 +266,18 @@ export class RobotCollisionUtils {
       if (!box1.intersectsBox(box2)) {
         return null;
       }
-
-      // 计算两个包围盒的最小距离
-      const distance = this.calculateBoxDistance(box1, box2);
       
-      if (distance <= threshold) {
-        return {
-          mesh1: mesh1,
-          mesh2: mesh2,
-          linkName1: mesh1Data.linkName,
-          linkName2: mesh2Data.linkName,
-          jointName1: mesh1Data.jointName,
-          jointName2: mesh2Data.jointName,
-          distance: distance,
-          severity: distance <= 0 ? 'collision' : 'warning',
-          detectionMethod: 'AABB_FALLBACK',
-          timestamp: Date.now()
-        };
-      }
+      return {
+        mesh1: mesh1,
+        mesh2: mesh2,
+        linkName1: mesh1Data.linkName,
+        linkName2: mesh2Data.linkName,
+        jointName1: mesh1Data.jointName,
+        jointName2: mesh2Data.jointName,
+        detectionMethod: 'AABB_FALLBACK',
+        timestamp: Date.now()
+      };
 
-      return null;
     } catch (error) {
       console.warn('AABB回退检测也失败:', error);
       return null;
