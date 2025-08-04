@@ -24,4 +24,29 @@ yarn-debug.log*
 yarn-error.log*
 package-lock.json
 
+# Webpack cache and build artifacts
+.cache/
+*.cache
+**/node_modules/.cache/
+**/.cache/
+
+# dae-viewer-app specific
 /dae-viewer-app/node_modules/
+/dae-viewer-app/build/
+/dae-viewer-app/.cache/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
