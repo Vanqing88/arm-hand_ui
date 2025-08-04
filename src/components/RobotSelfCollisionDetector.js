@@ -442,127 +442,117 @@ const RobotSelfCollisionDetector = ({
     return children(selfCollisionAPI);
   }
 
-  // 否则渲染默认的状态显示组件
-  return (
-    <SelfCollisionStatusDisplay 
-      status={collisionStatus}
-      isInitialized={isInitialized}
-      isDetecting={isDetecting}
-      isEnabled={isEnabled}
-      api={selfCollisionAPI}
-    />
-  );
+  // 删除UI面板渲染，但保持碰撞检测功能
+  return null;
 };
 
-/**
- * 自碰撞状态显示组件
- */
-const SelfCollisionStatusDisplay = ({ 
-  status, 
-  isInitialized, 
-  isDetecting, 
-  isEnabled,
-  api 
-}) => {
-  const getStatusColor = () => {
-    if (!isInitialized) return '#95a5a6'; // 灰色 - 未初始化
-    if (!isEnabled) return '#95a5a6'; // 灰色 - 已禁用
-    if (status.hasCollision) return '#e74c3c'; // 红色 - 碰撞
-    return '#27ae60'; // 绿色 - 正常
-  };
+// 删除SelfCollisionStatusDisplay组件，因为不再需要UI面板
+// const SelfCollisionStatusDisplay = ({ 
+//   status, 
+//   isInitialized, 
+//   isDetecting, 
+//   isEnabled,
+//   api 
+// }) => {
+//   const getStatusColor = () => {
+//     if (!isInitialized) return '#95a5a6'; // 灰色 - 未初始化
+//     if (!isEnabled) return '#95a5a6'; // 灰色 - 已禁用
+//     if (status.hasCollision) return '#e74c3c'; // 红色 - 碰撞
+//     return '#27ae60'; // 绿色 - 正常
+//   };
 
-  const getStatusText = () => {
-    if (!isInitialized) return '初始化中...';
-    if (!isEnabled) return '已禁用';
-    if (status.hasCollision) return `自碰撞 (${status.collisionCount})`;
-    return '正常';
-  };
+//   const getStatusText = () => {
+//     if (!isInitialized) return '初始化中...';
+//     if (!isEnabled) return '已禁用';
+//     if (status.hasCollision) return `自碰撞 (${status.collisionCount})`;
+//     return '正常';
+//   };
 
-  return (
-    <div style={{
-      position: 'absolute',
-      top: '10px',
-      left: '10px',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      color: 'white',
-      padding: '10px',
-      borderRadius: '5px',
-      fontSize: '14px',
-      fontFamily: 'Arial, sans-serif',
-      zIndex: 1000,
-      minWidth: '200px'
-    }}>
-      <div style={{ marginBottom: '5px', fontWeight: 'bold' }}>
-        机器人自碰撞检测
-      </div>
+//   return (
+//     <div style={{
+//       position: 'absolute',
+//       top: '10px',
+//       left: '10px',
+//       backgroundColor: 'rgba(0, 0, 0, 0.8)',
+//       color: 'white',
+//       padding: '10px',
+//       borderRadius: '5px',
+//       fontSize: '14px',
+//       fontFamily: 'Arial, sans-serif',
+//       zIndex: 1000,
+//       minWidth: '200px'
+//     }}>
+//       <div style={{ marginBottom: '5px', fontWeight: 'bold' }}>
+//         机器人自碰撞检测
+//       </div>
       
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        marginBottom: '5px' 
-      }}>
-        <div style={{
-          width: '12px',
-          height: '12px',
-          borderRadius: '50%',
-          backgroundColor: getStatusColor(),
-          marginRight: '8px'
-        }} />
-        <span>{getStatusText()}</span>
-      </div>
+//       <div style={{ 
+//         display: 'flex', 
+//         alignItems: 'center', 
+//         marginBottom: '5px' 
+//       }}>
+//         <div style={{
+//           width: '12px',
+//           height: '12px',
+//           borderRadius: '50%',
+//           backgroundColor: getStatusColor(),
+//           marginRight: '8px'
+//         }} />
+//         <span>{getStatusText()}</span>
+//       </div>
 
-      {isInitialized && (
-        <div style={{ fontSize: '12px', color: '#ccc' }}>
-          <div>检测对: {api.selfCollisionPairs?.length || 0}</div>
-          <div>状态: {isDetecting ? '运行中' : '已停止'}</div>
-          <div>
-            <button 
-              onClick={() => {
-                const stats = api.getBVHStats();
-                const validation = api.validateBVH();
-                console.log('BVH统计:', stats);
-                console.log('BVH验证:', validation);
-              }}
-              style={{
-                fontSize: '10px',
-                padding: '2px 4px',
-                marginTop: '5px',
-                backgroundColor: '#333',
-                color: '#fff',
-                border: '1px solid #555',
-                borderRadius: '3px',
-                cursor: 'pointer'
-              }}
-            >
-              调试信息
-            </button>
-          </div>
-        </div>
-      )}
+//       {isInitialized && (
+//         <div style={{ fontSize: '12px', color: '#ccc' }}>
+//           <div>检测对: {api.selfCollisionPairs?.length || 0}</div>
+//           <div>状态: {isDetecting ? '运行中' : '已停止'}</div>
+//           <div>
+//             <button 
+//               onClick={() => {
+//                 const stats = api.getBVHStats();
+//                 const validation = api.validateBVH();
+//                 console.log('BVH统计:', stats);
+//                 console.log('BVH验证:', validation);
+//               }}
+//               style={{
+//                 fontSize: '10px',
+//                 padding: '2px 4px',
+//                 marginTop: '5px',
+//                 backgroundColor: '#333',
+//                 color: '#fff',
+//                 border: '1px solid #555',
+//                 borderRadius: '3px',
+//                 cursor: 'pointer'
+//               }}
+//             >
+//               调试信息
+//             </button>
+//           </div>
+//         </div>
+//       )}
 
-      {status.hasCollision && status.details.length > 0 && (
-        <div style={{ 
-          marginTop: '10px', 
-          fontSize: '11px', 
-          color: '#ffcccc',
-          maxHeight: '100px',
-          overflowY: 'auto'
-        }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>
-            碰撞详情:
-          </div>
-          {status.details
-            .slice(0, 3)
-            .map((detail, index) => (
-              <div key={index}>
-                {detail.linkName1} ↔ {detail.linkName2}
-              </div>
-            ))
-          }
-        </div>
-      )}
-    </div>
-  );
-};
+//       {status.hasCollision && status.details.length > 0 && (
+//         <div style={{ 
+//           marginTop: '10px', 
+//           fontSize: '11px', 
+//           color: '#ffcccc',
+//           maxHeight: '100px',
+//           overflowY: 'auto'
+//         }}>
+//           <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>
+//             碰撞详情:
+//           </div>
+//           {status.details
+//             .slice(0, 3)
+//             .map((detail, index) => (
+//               <div key={index}>
+//                 {detail.linkName1} ↔ {detail.linkName2}
+//               </div>
+//             ))
+//           }
+//         </div>
+//       )}
+//     </div>
+//   );
+// };
 
 export default RobotSelfCollisionDetector; 
