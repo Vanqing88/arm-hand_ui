@@ -9,6 +9,7 @@ import ArmControl from './components/ArmControl';
 import ActionButtons from './components/ActionButtons';
 import RobotArmTarget from './components/RobotArmTarget';
 import Teacher from './components/Teacher';
+import GlobalControlButtons from './components/GlobalControlButtons';
 import config from "./config";
 import { Quaternion, Euler } from 'three';
 import * as THREE from 'three';
@@ -2119,9 +2120,18 @@ const App = () => {
         >
           预设动作模式
         </button>
-              </div>
+      </div>
 
-                {/* 示教组件 - 只在非手掌模式和预设动作模式下显示 */}
+      {/* 全局控制按钮 - 运行、软急停、关机 */}
+      <GlobalControlButtons
+        onRun={() => handlePresetAction(7)}
+        onEmergencyStop={() => handlePresetAction(8)}
+        onShutdown={() => handlePresetAction(9)}
+        rosServiceCalling={armRosServiceCalling}
+        disabled={showTeacher !== 2}
+      />
+
+      {/* 示教组件 - 只在非手掌模式和预设动作模式下显示 */}
         {showTeacher !== 2 && !showHandComponents && !showPresetActions && <Teacher />}
 
       {/* 机器人主视图 - 手臂控制模式 */}
@@ -2282,7 +2292,7 @@ const App = () => {
             />
           </div>
 
-          {/* 右侧预设动作控制面板 - 动作7-12 */}
+          {/* 右侧预设动作控制面板 - 动作10-12 (运行、软急停、关机已移至全局控制) */}
           <div style={{
             position: 'absolute',
             right: '2%',
@@ -2293,9 +2303,6 @@ const App = () => {
           }}>
             <PresetActionPanel
               actions={[
-                { id: 7, name: '运行', description: '预设动作7' },
-                { id: 8, name: '软急停', description: '预设动作8' },
-                { id: 9, name: '关机', description: '预设动作9' },
                 { id: 10, name: '动作10', description: '预设动作10' },
                 { id: 11, name: '动作11', description: '预设动作11' },
                 { id: 12, name: '动作12', description: '预设动作12' }
