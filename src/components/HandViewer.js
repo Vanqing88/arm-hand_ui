@@ -40,6 +40,14 @@ const HandViewer = ({
     );
   }, []);
 
+  // 使用ref跟踪type变化，避免重新初始化
+  const typeRef = useRef(type);
+  
+  // 更新typeRef的值
+  useEffect(() => {
+    typeRef.current = type;
+  }, [type]);
+  
   useEffect(() => {
     // 初始化场景、相机和渲染器
     const scene = new THREE.Scene();
@@ -48,7 +56,7 @@ const HandViewer = ({
     scene.background = new THREE.Color(0xf0f0f0);
 
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1000);
-    const pos = type === 'L' ? 0.3 : -0.3;
+    const pos = typeRef.current === 'L' ? 0.3 : -0.3;
     camera.position.set(0, 0, pos);
     camera.lookAt(0, 0, 0);
 
@@ -58,7 +66,7 @@ const HandViewer = ({
     // 使用VR光照配置
     const lights = createVRLighting(scene);
 
-    const urdf = type === 'L' ? './lefthand/urdf/lefthand.urdf' : './righthand/urdf/righthand.urdf';
+    const urdf = typeRef.current === 'L' ? './lefthand/urdf/lefthand.urdf' : './righthand/urdf/righthand.urdf';
     // 加载URDF模型
     const loader = new URDFLoader();
     loader.load(urdf, (robot) => {
@@ -100,7 +108,7 @@ const HandViewer = ({
       // 清理VR光照
       disposeVRLighting(lights);
     };
-  }, [type]);
+  }, []); // 移除type依赖项，确保场景只初始化一次
 
   // 关节的映射关系
   const jointSyncMap = {

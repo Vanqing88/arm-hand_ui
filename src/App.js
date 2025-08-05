@@ -2134,9 +2134,17 @@ const App = () => {
       {/* 示教组件 - 只在非手掌模式和预设动作模式下显示 */}
         {showTeacher !== 2 && !showHandComponents && !showPresetActions && <Teacher />}
 
-      {/* 机器人主视图 - 手臂控制模式 */}
-      {!showHandComponents && !showPresetActions && !showRobotArmTarget && (
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
+      {/* 共享的机器人主视图 - 所有模式共用同一个RobotViewer实例 */}
+      {!showHandComponents && (
+        <div style={{ 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          width: '100%', 
+          height: '100%', 
+          zIndex: 1,
+          display: showHandComponents ? 'none' : 'block' // 在手掌模式下隐藏
+        }}>
           <RobotViewer
             rosServiceCalling={armRosServiceCalling}
             isInteracting={armIsInteracting}
@@ -2159,42 +2167,15 @@ const App = () => {
             handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
                                  // 碰撞检测参数
                      onCollisionStatusChange={(status) => {
-                       console.log('手臂控制模式 - 机器人碰撞状态:', status);
+                       console.log('机器人碰撞状态:', status);
                      }}
           />
         </div>
       )}
 
-      {/* 末端控制模式界面 - 采用与预设动作模式相同的布局 */}
+      {/* 末端控制模式界面 - 只显示控制面板，机器人视图由共享组件提供 */}
       {showRobotArmTarget && (
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
-          {/* 机器人主视图 - 与其他模式相同，但不显示内部的RobotArmTarget */}
-          <RobotViewer
-            rosServiceCalling={armRosServiceCalling}
-            isInteracting={armIsInteracting}
-            onInteractionChange={onArmIsInteractingChange}
-            realTimeLeftArmValues={realTimeLeftArmValues}
-            realTimeRightArmValues={realTimeRightArmValues}
-            plannedLeftArmValues={plannedLeftArmValues}
-            plannedRightArmValues={plannedRightArmValues}
-            onLeftControlChange={handlePlannedLeftArmChange}
-            onRightControlChange={handlePlannedRightArmChange}
-            onLeftMoveJSrvCall={handleLeftArmMoveJSrvCall}
-            onRightMoveJSrvCall={handleRightArmMoveJSrvCall}
-            style={{ width: '100%', height: '100%' }}
-            showRobotArmTarget={false} // 重要：设置为false，不在RobotViewer内部显示
-            // L_HandRef={L_HandRef}
-            // R_HandRef={R_HandRef}
-            CoordinatesTemp={CoordinatesTemp}
-            setCoordinatesTemp={setCoordinatesTemp}
-            handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
-            handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
-                                 // 碰撞检测参数
-                     onCollisionStatusChange={(status) => {
-                       console.log('末端控制模式 - 机器人碰撞状态:', status);
-                     }}
-          />
-
           {/* 左侧末端控制面板 - 使用重构后的RobotArmTarget组件 */}
           <div style={{
             position: 'absolute',
@@ -2237,36 +2218,9 @@ const App = () => {
         </div>
       )}
 
-      {/* 预设动作模式界面 */}
+      {/* 预设动作模式界面 - 只显示控制面板，机器人视图由共享组件提供 */}
       {showPresetActions && (
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
-          {/* 机器人主视图 - 与手臂控制模式相同 */}
-          <RobotViewer
-            rosServiceCalling={armRosServiceCalling}
-            isInteracting={armIsInteracting}
-            onInteractionChange={onArmIsInteractingChange}
-            realTimeLeftArmValues={realTimeLeftArmValues}
-            realTimeRightArmValues={realTimeRightArmValues}
-            plannedLeftArmValues={plannedLeftArmValues}
-            plannedRightArmValues={plannedRightArmValues}
-            onLeftControlChange={handlePlannedLeftArmChange}
-            onRightControlChange={handlePlannedRightArmChange}
-            onLeftMoveJSrvCall={handleLeftArmMoveJSrvCall}
-            onRightMoveJSrvCall={handleRightArmMoveJSrvCall}
-            style={{ width: '100%', height: '100%' }}
-            showRobotArmTarget={false}
-            // L_HandRef={L_HandRef}
-            // R_HandRef={R_HandRef}
-            CoordinatesTemp={CoordinatesTemp}
-            setCoordinatesTemp={setCoordinatesTemp}
-            handleLeftArmMoveLSrvCall={handleLeftArmMoveLSrvCall}
-            handleRightArmMoveLSrvCall={handleRightArmMoveLSrvCall}
-                                 // 碰撞检测参数
-                     onCollisionStatusChange={(status) => {
-                       console.log('预设动作模式 - 机器人碰撞状态:', status);
-                     }}
-          />
-
           {/* 左侧预设动作控制面板 - 动作1-6 */}
           <div style={{
             position: 'absolute',

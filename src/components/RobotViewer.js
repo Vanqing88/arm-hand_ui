@@ -505,7 +505,7 @@ const RobotViewer = ({
       // 清理VR光照
       disposeVRLighting(lights);
     };
-  }, [buildJointLinkMapping]);
+  }, []); // 移除buildJointLinkMapping依赖项，确保场景只初始化一次
 
   // 优化更新的频率，包含关节颜色更新逻辑和双机器人更新
   const updateArmvalues = useCallback(() => {
