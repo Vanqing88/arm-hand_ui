@@ -155,10 +155,13 @@ const HandViewer = ({
     return () => clearInterval(interval); // 清理 interval
   }, [updateHandValues]);
 
-  // 鼠标交互部分
-  const dragging = useRef(false);
-  const initialMouseY = useRef(null);
-  const selectedObjectRef = useRef(null);
+  // {{CHENGQI:
+  // Action: Removed; Timestamp: 2025-08-05T11:22:29+08:00; Reason: Remove unused variables after disabling mouse joint control;
+  // }}
+  // 移除不再需要的鼠标控制相关变量
+  // const dragging = useRef(false);
+  // const initialMouseY = useRef(null);
+  // const selectedObjectRef = useRef(null);
 
   // 兼容触摸和鼠标事件的辅助函数
   function getClientXY(event) {
@@ -171,69 +174,35 @@ const HandViewer = ({
     }
   }
 
+  // {{CHENGQI:
+  // Action: Disabled; Timestamp: 2025-08-05T11:22:29+08:00; Reason: Disable mouse joint control to prevent accidental robot movement when dragging page;
+  // }}
+  // 禁用鼠标关节控制 - 用户反馈拖动页面时会引起机器人执行运动
   const onMouseDown = useCallback((event) => {
-    if (dragging.current) return;
-    dragging.current = true;
-    onInteractionChange(true);
-    if (!sceneRef.current || !cameraRef.current) return;
-    const { x, y } = getClientXY(event);
-    const rect = canvasRef.current.getBoundingClientRect();
-    initialMouseY.current = y;
-    const mouse = new THREE.Vector2(
-      ((x - rect.left) / rect.width) * 2 - 1,
-      -((y - rect.top) / rect.height) * 2 + 1
-    );
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, cameraRef.current);
-    const intersects = raycaster.intersectObjects(sceneRef.current.children, true);
-    if (intersects.length > 0) {
-      const selectedObject = intersects[0].object.parent.parent;
-      const classifySelection = (object) => {
-        const { name } = object;
-        let joint = "unknown";
-        if (name.startsWith("index")) joint = "index_MCP";
-        else if (name.startsWith("middle")) joint = "middle_MCP";
-        else if (name.startsWith("ring")) joint = "ring_MCP";
-        else if (name.startsWith("little")) joint = "little_MCP";
-        else if (name === "base_link" || name.startsWith("thumb_Link1"))
-          joint = "thumb_CMC";
-        else if (name.startsWith("thumb_Link2") || name.startsWith("thumb_Link3"))
-          joint = "thumb_IP";
-        return {
-          ...object,
-          joint,
-        };
-      };
-      selectedObjectRef.current = classifySelection(selectedObject);
-    }
+    // 鼠标关节控制已禁用，只保留3D渲染
+    // 所有手掌控制现在通过控制面板进行
     // 阻止移动端长按弹出菜单
     if (event.touches) event.preventDefault();
   });
 
+  // {{CHENGQI:
+  // Action: Disabled; Timestamp: 2025-08-05T11:22:29+08:00; Reason: Disable mouse joint control to prevent accidental robot movement when dragging page;
+  // }}
+  // 禁用鼠标关节控制 - 用户反馈拖动页面时会引起机器人执行运动
   const onMouseMove = useCallback((event) => {
-    if (dragging.current && selectedObjectRef.current?.joint !== "unknown" && !rosServiceCalling) {
-      const { y } = getClientXY(event);
-      const deltaY = y - initialMouseY.current;
-      const name = selectedObjectRef.current.joint;
-      const jointValueChange = deltaY / 2;
-      const newValues = plannedHandValuesRef.current[name] + jointValueChange;
-      plannedHandValuesRef.current[name] = newValues;
-      onControlChange(name, newValues);
-      initialMouseY.current = y;
-    }
+    // 鼠标关节控制已禁用，只保留3D渲染
+    // 所有手掌控制现在通过控制面板进行
     // 阻止页面滚动
     if (event.touches) event.preventDefault();
   });
 
+  // {{CHENGQI:
+  // Action: Disabled; Timestamp: 2025-08-05T11:22:29+08:00; Reason: Disable mouse joint control to prevent accidental robot movement when dragging page;
+  // }}
+  // 禁用鼠标关节控制 - 用户反馈拖动页面时会引起机器人执行运动
   const onMouseUp = useCallback((event) => {
-    dragging.current = false;
-    if (selectedObjectRef.current && selectedObjectRef.current.name !== "unknown") {
-      if (!areJointValuesEqual(realTimeHandValuesRef.current, plannedHandValuesRef.current)) {
-        onHandSrvCall(plannedHandValuesRef.current);
-      }
-    }
-    onInteractionChange(false);
-    selectedObjectRef.current = null;
+    // 鼠标关节控制已禁用，只保留3D渲染
+    // 所有手掌控制现在通过控制面板进行
     // 阻止移动端点击穿透
     if (event.touches || event.changedTouches) event.preventDefault();
   });

@@ -39,10 +39,14 @@ const RobotViewer = ({
   const canvasRef = useRef(null);
   const robotRef = useRef(null);
   const controlsRef = useRef(null);
-  const initialMouseY = useRef(null);
-  const initialMouseX = useRef(null);
-  const selectedObjectRef = useRef(null);
-  const isDragging = useRef(false);
+  // {{CHENGQI:
+  // Action: Removed; Timestamp: 2025-08-05T11:22:29+08:00; Reason: Remove unused variables after disabling mouse joint control;
+  // }}
+  // 移除不再需要的鼠标控制相关变量
+  // const initialMouseY = useRef(null);
+  // const initialMouseX = useRef(null);
+  // const selectedObjectRef = useRef(null);
+  // const isDragging = useRef(false);
 
   const [sceneReady, setSceneReady] = useState(false);
   const [robots, setRobots] = useState({});
@@ -560,111 +564,77 @@ const RobotViewer = ({
     }
   }
 
+  // {{CHENGQI:
+  // Action: Removed; Timestamp: 2025-08-05T11:22:29+08:00; Reason: Remove unused function after disabling mouse joint control;
+  // }}
+  // 移除不再需要的鼠标控制相关函数
   // 递归查找父对象，找到name以_L或_R结尾的对象（手臂关节）
-  function findArmJointObject(obj) {
-    let current = obj;
-    while (current) {
-      if (current.name && (current.name.endsWith('_L') || current.name.endsWith('_R'))) {
-        return current;
-      }
-      current = current.parent;
-    }
-    return null;
-  }
+  // function findArmJointObject(obj) {
+  //   let current = obj;
+  //   while (current) {
+  //     if (current.name && (current.name.endsWith('_L') || current.name.endsWith('_R'))) {
+  //       return current;
+  //     }
+  //     current = current.parent;
+  //   }
+  //   return null;
+  // }
 
+  // {{CHENGQI:
+  // Action: Disabled; Timestamp: 2025-08-05T11:22:29+08:00; Reason: Disable mouse joint control to prevent accidental robot movement when dragging page;
+  // }}
+  // 禁用鼠标关节控制 - 用户反馈拖动页面时会引起机器人执行运动
   const onMouseDown = useCallback((event) => {
-    if (isDragging.current || rosServiceCalling) return;
-    isDragging.current = true;
-    const { x, y } = getClientXY(event);
-    const rect = canvasRef.current.getBoundingClientRect();
-    initialMouseY.current = y;
-    initialMouseX.current = x;
-    const mouse = new THREE.Vector2(
-      ((x - rect.left) / rect.width) * 2 - 1,
-      -((y - rect.top) / rect.height) * 2 + 1
-    );
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, cameraRef.current);
-    const intersects = raycaster.intersectObjects(sceneRef.current.children, true);
-    if (intersects.length > 0) {
-      const armJointObj = findArmJointObject(intersects[0].object);
-      if (armJointObj) {
-        selectedObjectRef.current = armJointObj;
-        controlsRef.current.enabled = false;
-      } else {
-        selectedObjectRef.current = null;
-        controlsRef.current.enabled = true;
-      }
-    } else {
-      selectedObjectRef.current = null;
-      controlsRef.current.enabled = true;
-    }
+    // 鼠标关节控制已禁用，只保留相机控制
+    // 所有机器人控制现在通过控制面板进行
     if (event.touches) event.preventDefault();
   });
 
+  // {{CHENGQI:
+  // Action: Disabled; Timestamp: 2025-08-05T11:22:29+08:00; Reason: Disable mouse joint control to prevent accidental robot movement when dragging page;
+  // }}
+  // 禁用鼠标关节控制 - 用户反馈拖动页面时会引起机器人执行运动
   const onMouseMove = useCallback((event) => {
-    if (isDragging.current && selectedObjectRef.current && !rosServiceCalling) {
-      const { x, y } = getClientXY(event);
-      const deltaY = initialMouseY.current - y;
-      const deltaX = (x - initialMouseX.current) / 10;
-      const name = selectedObjectRef.current.name;
-      let jointValueChange = name === 'Neck_Y' ? deltaY : deltaX;
-      const { newValues, isLeftArm, isRightArm } = getUpdatedJointValues(name, jointValueChange);
-      if (isLeftArm) {
-        onLeftControlChange(name, newValues);
-      } else if (isRightArm) {
-        onRightControlChange(name, newValues);
-      } else {
-        return;
-      }
-      initialMouseY.current = y;
-      initialMouseX.current = x;
-    }
+    // 鼠标关节控制已禁用，只保留相机控制
+    // 所有机器人控制现在通过控制面板进行
     if (event.touches) event.preventDefault();
   });
 
+  // {{CHENGQI:
+  // Action: Removed; Timestamp: 2025-08-05T11:22:29+08:00; Reason: Remove unused functions after disabling mouse joint control;
+  // }}
+  // 移除不再需要的鼠标控制相关函数
   // 提取为一个函数，判断并更新关节值
-  const getUpdatedJointValues = (name, jointValueChange) => {
-    let newValues = 0;
-    const isLeftArm = name.endsWith('_L');
-    const isRightArm = name.endsWith('_R');
+  // const getUpdatedJointValues = (name, jointValueChange) => {
+  //   let newValues = 0;
+  //   const isLeftArm = name.endsWith('_L');
+  //   const isRightArm = name.endsWith('_R');
 
-    if (isLeftArm) {
-      newValues = plannedLeftArmValuesRef.current[name] + jointValueChange;
-      newValues = validateJointValue(newValues);
-      plannedLeftArmValuesRef.current[name] = newValues;
-    } else if (isRightArm) {
-      newValues = plannedRightArmValuesRef.current[name] + jointValueChange;
-      newValues = validateJointValue(newValues);
-      plannedRightArmValuesRef.current[name] = newValues;
-    }
+  //   if (isLeftArm) {
+  //     newValues = plannedLeftArmValuesRef.current[name] + jointValueChange;
+  //     newValues = validateJointValue(newValues);
+  //     plannedLeftArmValuesRef.current[name] = newValues;
+  //   } else if (isRightArm) {
+  //     newValues = plannedRightArmValuesRef.current[name] + jointValueChange;
+  //     newValues = validateJointValue(newValues);
+  //     plannedRightArmValuesRef.current[name] = newValues;
+  //   }
 
-    return { newValues, isLeftArm, isRightArm };
-  };
+  //   return { newValues, isLeftArm, isRightArm };
+  // };
 
   // 验证关节值是否有效
-  const validateJointValue = (value) => {
-    return isNaN(value) ? 0 : value;
-  };
+  // const validateJointValue = (value) => {
+  //   return isNaN(value) ? 0 : value;
+  // };
 
+  // {{CHENGQI:
+  // Action: Disabled; Timestamp: 2025-08-05T11:22:29+08:00; Reason: Disable mouse joint control to prevent accidental robot movement when dragging page;
+  // }}
+  // 禁用鼠标关节控制 - 用户反馈拖动页面时会引起机器人执行运动
   const onMouseUp = useCallback((event) => {
-    isDragging.current = false;
-    if (selectedObjectRef.current) {
-      const selectedName = selectedObjectRef.current.name;
-      if (
-        selectedName.endsWith('_L') && !areJointValuesEqual(realTimeLeftArmValuesRef.current, plannedLeftArmValuesRef.current)
-      ) {
-        onLeftMoveJSrvCall(plannedLeftArmValuesRef.current);
-      }
-      if (
-        selectedName.endsWith('_R') && !areJointValuesEqual(realTimeRightArmValuesRef.current, plannedRightArmValuesRef.current)
-      ) {
-        onRightMoveJSrvCall(plannedRightArmValuesRef.current);
-      }
-    }
-    onInteractionChange(false);
-    controlsRef.current.enabled = true;
-    selectedObjectRef.current = null;
+    // 鼠标关节控制已禁用，只保留相机控制
+    // 所有机器人控制现在通过控制面板进行
     if (event.touches || event.changedTouches) event.preventDefault();
   });
 
