@@ -10,7 +10,7 @@ export const setRobotTransparency = (robot, opacity = 0.5, transparent = true) =
       // 处理单个材质
       if (child.material && !Array.isArray(child.material)) {
         // 确保材质是可以修改的（避免共享材质问题）
-        if (child.material.isSharedMaterial) {
+        if (child.material.isSharedMaterial || child.material.uuid) {
           child.material = child.material.clone();
         }
         
@@ -48,6 +48,11 @@ export const setRobotTransparency = (robot, opacity = 0.5, transparent = true) =
       }
     }
   });
+  
+  // 强制更新场景
+  if (robot.parent && robot.parent.type === 'Scene') {
+    robot.parent.needsUpdate = true;
+  }
 };
 
 // 创建透明机器人副本函数
@@ -85,7 +90,11 @@ export const loadDualRobots = (scene, urdfPath, onLoadComplete) => {
     // 等待加载完成后设置透明度
     setTimeout(() => {
       setRobotTransparency(robot1, 0.5, true);
-    }, 800);
+    }, 500);
+
+    setTimeout(() => {
+      setRobotTransparency(robot1, 0.5, true);
+    }, 5000);
     
     scene.add(robot1);
     robots.realtime = robot1;
