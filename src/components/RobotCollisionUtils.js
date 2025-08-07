@@ -404,12 +404,28 @@ export class RobotCollisionUtils {
         if (collision.mesh1) {
           // 标记该网格为碰撞状态，避免被关节限位颜色覆盖
           collision.mesh1.userData.isCollisionState = true;
-          collision.mesh1.material = material.clone();
+          const newMaterial = material.clone();
+          // 保留原始材质的透明度设置
+          const originalMaterial = this.originalMaterials.get(collision.mesh1.uuid);
+          if (originalMaterial && originalMaterial.transparent) {
+            newMaterial.transparent = true;
+            newMaterial.opacity = originalMaterial.opacity;
+            newMaterial.depthWrite = false;
+          }
+          collision.mesh1.material = newMaterial;
         }
         if (collision.mesh2) {
           // 标记该网格为碰撞状态，避免被关节限位颜色覆盖
           collision.mesh2.userData.isCollisionState = true;
-          collision.mesh2.material = material.clone();
+          const newMaterial = material.clone();
+          // 保留原始材质的透明度设置
+          const originalMaterial = this.originalMaterials.get(collision.mesh2.uuid);
+          if (originalMaterial && originalMaterial.transparent) {
+            newMaterial.transparent = true;
+            newMaterial.opacity = originalMaterial.opacity;
+            newMaterial.depthWrite = false;
+          }
+          collision.mesh2.material = newMaterial;
         }
       }
     }
@@ -426,7 +442,18 @@ export class RobotCollisionUtils {
           if (meshData.mesh.uuid === meshUuid) {
             // 检查该网格是否处于碰撞状态，如果是则不重置
             if (!meshData.mesh.userData.isCollisionState) {
-              meshData.mesh.material = originalMaterial.clone();
+              // 恢复原始材质，但保留透明度设置
+              const currentMaterial = meshData.mesh.material;
+              if (currentMaterial && currentMaterial.transparent) {
+                // 如果当前材质是透明的，保持透明度
+                const newMaterial = originalMaterial.clone();
+                newMaterial.transparent = true;
+                newMaterial.opacity = currentMaterial.opacity;
+                newMaterial.depthWrite = false;
+                meshData.mesh.material = newMaterial;
+              } else {
+                meshData.mesh.material = originalMaterial.clone();
+              }
             }
             return;
           }

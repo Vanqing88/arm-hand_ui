@@ -54,6 +54,7 @@ const RobotViewer = ({
   const updateInterval = 100;
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
+  const lastPlannedColorUpdateRef = useRef(Date.now());
   
   // 碰撞检测状态
   const [collisionStatus, setCollisionStatus] = useState({
@@ -348,19 +349,29 @@ const RobotViewer = ({
               return;
             }
             
+            // 获取原始材质作为基础
+            const originalMaterial = targetMaterialsRef.current.get(child.uuid);
+            if (!originalMaterial) {
+              return; // 没有原始材质，跳过
+            }
+            
             if (status === 'normal') {
               // 恢复原始材质
-              const originalMaterial = targetMaterialsRef.current.get(child.uuid);
-              if (originalMaterial) {
-                child.material = originalMaterial;
-                // console.log(`恢复${robotType}模型机械臂部件网格 ${child.uuid} 的原始材质`);
-              }
+              child.material = originalMaterial.clone();
+              // console.log(`恢复${robotType}模型机械臂部件网格 ${child.uuid} 的原始材质`);
             } else {
-              // 应用警告或危险材质
+              // 应用警告或危险材质，但保留原始材质的透明度设置
               const materials = createWarningMaterials();
               const targetMaterial = materials[status];
               if (targetMaterial) {
-                child.material = targetMaterial;
+                // 克隆警告材质并保留透明度设置
+                const newMaterial = targetMaterial.clone();
+                if (originalMaterial.transparent) {
+                  newMaterial.transparent = true;
+                  newMaterial.opacity = originalMaterial.opacity;
+                  newMaterial.depthWrite = false;
+                }
+                child.material = newMaterial;
                 // console.log(`应用 ${status} 材质到${robotType}模型机械臂部件网格 ${child.uuid}`);
               }
             }
@@ -541,9 +552,13 @@ const RobotViewer = ({
       updateJointValuesWithColorCheck(robots.realtime, realTimeLeftArmValuesRef.current, '_L', 'realtime');
       updateJointValuesWithColorCheck(robots.realtime, realTimeRightArmValuesRef.current, '_R', 'realtime');
       
-      // 对规划机器人进行颜色状态检查
-      updateJointValuesWithColorCheck(robots.planned, plannedLeftArmValuesRef.current, '_L', 'planned');
-      updateJointValuesWithColorCheck(robots.planned, plannedRightArmValuesRef.current, '_R', 'planned');
+      // 对规划机器人进行颜色状态检查（使用与实时机器人一致的更新频率）
+      const plannedUpdateInterval = 100; // 100ms更新一次，与实时机器人保持一致
+      if (currentTime - (lastPlannedColorUpdateRef.current || 0) > plannedUpdateInterval) {
+        updateJointValuesWithColorCheck(robots.planned, plannedLeftArmValuesRef.current, '_L', 'planned');
+        updateJointValuesWithColorCheck(robots.planned, plannedRightArmValuesRef.current, '_R', 'planned');
+        lastPlannedColorUpdateRef.current = currentTime;
+      }
     }
   }, [sceneReady, robots, updateRobotJointValues, checkJointLimitStatus, updateJointVisualColor]);
 
