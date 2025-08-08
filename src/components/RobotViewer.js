@@ -358,6 +358,10 @@ const RobotViewer = ({
             if (status === 'normal') {
               // 恢复原始材质
               child.material = originalMaterial.clone();
+              // 清理关节限位标记
+              if (child.userData && child.userData.jointLimitState) {
+                delete child.userData.jointLimitState;
+              }
               // console.log(`恢复${robotType}模型机械臂部件网格 ${child.uuid} 的原始材质`);
             } else {
               // 应用警告或危险材质，但保留原始材质的透明度设置
@@ -371,6 +375,8 @@ const RobotViewer = ({
                   newMaterial.opacity = originalMaterial.opacity;
                   newMaterial.depthWrite = false;
                 }
+                // 标记为关节限位状态，防止被全局重置覆盖
+                child.userData.jointLimitState = status; // 'warning' | 'danger'
                 child.material = newMaterial;
                 // console.log(`应用 ${status} 材质到${robotType}模型机械臂部件网格 ${child.uuid}`);
               }

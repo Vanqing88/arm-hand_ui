@@ -440,8 +440,9 @@ export class RobotCollisionUtils {
       this.robotBVHs.forEach(robotData => {
         for (const meshData of robotData.meshes) {
           if (meshData.mesh.uuid === meshUuid) {
-            // 检查该网格是否处于碰撞状态，如果是则不重置
-            if (!meshData.mesh.userData.isCollisionState) {
+            // 优先级保护：若网格处于碰撞或关节限位高亮，则不重置
+            const userData = meshData.mesh.userData || {};
+            if (!userData.isCollisionState && !userData.jointLimitState) {
               // 恢复原始材质，但保留透明度设置
               const currentMaterial = meshData.mesh.material;
               if (currentMaterial && currentMaterial.transparent) {
@@ -471,6 +472,7 @@ export class RobotCollisionUtils {
         if (meshData.mesh.userData.isCollisionState) {
           delete meshData.mesh.userData.isCollisionState;
         }
+        // 不清除 jointLimitState，这由关节限位逻辑自行维护
       }
     });
   }
