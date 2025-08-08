@@ -759,7 +759,8 @@ const ArmSliderControl = ({
   // 新增：另一边手臂的状态和回调函数
   realTimeOtherArmValues = {},
   plannedOtherArmValues = {},
-  onOtherMoveJSrvCall = null
+  onOtherMoveJSrvCall = null,
+  plannedHasCollision = false
 }) => {
   
   // 从config中获取机械臂关节配置并映射为组件需要的格式
@@ -800,6 +801,9 @@ const ArmSliderControl = ({
   
   const jointConfig = getArmJointConfig();
 
+  // {{CHENGQI: Added: 2025-08-08 14:13:59 +08:00; Reason: Show warning when executing during collision }}
+  const [collisionDialogOpen, setCollisionDialogOpen] = useState(false);
+
   const handleSliderChange = (jointName, value) => {
     onControlChange(jointName, parseFloat(value));
     if (!isInteracting) {
@@ -808,6 +812,11 @@ const ArmSliderControl = ({
   };
 
   const executeArmMovement = () => {
+    // {{CHENGQI: Added: 2025-08-08 14:13:59 +08:00; Reason: Prevent execution when planned model collides }}
+    if (plannedHasCollision) {
+      setCollisionDialogOpen(true);
+      return;
+    }
     // 检查当前手臂是否有参数变化
     const currentArmHasChanges = shouldShowPlannedValues();
     // 检查另一边手臂是否有参数变化
@@ -1000,13 +1009,13 @@ const ArmSliderControl = ({
             border: 'none',
             borderRadius: '6px',
             cursor: (!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode) ? 'not-allowed' : 'pointer',
-            backgroundColor: (!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode) ? '#95a5a6' : '#27ae60',
+            backgroundColor: (!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode) ? '#95a5a6' : (plannedHasCollision ? '#e67e22' : '#27ae60'),
             color: 'white',
             transition: 'all 0.3s ease',
             opacity: (!shouldEnableExecuteButton() || rosServiceCalling || isOnTeacherMode) ? 0.6 : 1
           }}
         >
-          {rosServiceCalling ? '执行中...' : isOnTeacherMode ? '示教模式中' : '执行运动'}
+          {rosServiceCalling ? '执行中...' : (isOnTeacherMode ? '示教模式中' : '执行运动')}
         </button>
 
         <button
@@ -1058,6 +1067,53 @@ const ArmSliderControl = ({
           ⚠️ 请确认机器人周围安全后再执行运动
         </div>
       )}
+
+      {/* {{CHENGQI: Added: 2025-08-08 14:13:59 +08:00; Reason: Collision warning dialog when planned model collides }} */}
+      <Dialog 
+        open={collisionDialogOpen} 
+        onClose={() => setCollisionDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle style={{
+          backgroundColor: '#f8d7da',
+          color: '#721c24',
+          borderBottom: '1px solid #f5c6cb'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+            碰撞警告
+          </div>
+        </DialogTitle>
+        <DialogContent style={{ padding: '20px' }}>
+          <Typography variant="body1" style={{ 
+            color: '#721c24',
+            lineHeight: '1.5',
+            marginBottom: '10px'
+          }}>
+            当前不透明机器人模型（规划）检测到碰撞，已阻止执行运动。
+          </Typography>
+          <Typography variant="body2" style={{ 
+            color: '#6c757d',
+            fontSize: '12px',
+            fontStyle: 'italic'
+          }}>
+            请调整关节参数或清除碰撞后再试。
+          </Typography>
+        </DialogContent>
+        <DialogActions style={{ padding: '16px 20px' }}>
+          <Button 
+            onClick={() => setCollisionDialogOpen(false)} 
+            variant="contained"
+            style={{
+              backgroundColor: '#721c24',
+              color: 'white'
+            }}
+          >
+            我知道了
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
@@ -1746,7 +1802,13 @@ const App = () => {
     rightArm: plannedRightArmValues,
   };
 
-    /*
+  // [INTERNAL_ACTION: Fetching current time via mcp.server_time.]
+  // {{CHENGQI:
+  // Action: Added; Timestamp: 2025-08-08 14:13:59 +08:00; Reason: Track planned-model collision to block execution and show warning dialog
+  // }}
+  const [plannedHasCollision, setPlannedHasCollision] = useState(false);
+
+  /*
   预设动作管理
    */
   const [currentActionTimer, setCurrentActionTimer] = useState(null);
@@ -2168,6 +2230,8 @@ const App = () => {
                                  // 碰撞检测参数
                      onCollisionStatusChange={(status) => {
                        console.log('机器人碰撞状态:', status);
+                       // {{CHENGQI: Modified: 2025-08-08 14:13:59 +08:00; Reason: Capture planned-model collision flag }}
+                       setPlannedHasCollision(!!(status && status.hasCollision));
                      }}
           />
         </div>
@@ -2421,6 +2485,7 @@ const App = () => {
                   realTimeOtherArmValues={realTimeRightArmValues}
                   plannedOtherArmValues={plannedRightArmValues}
                   onOtherMoveJSrvCall={handleRightArmMoveJSrvCall}
+                  plannedHasCollision={plannedHasCollision}
                 />
               </div>
               
@@ -2447,6 +2512,7 @@ const App = () => {
                   realTimeOtherArmValues={realTimeLeftArmValues}
                   plannedOtherArmValues={plannedLeftArmValues}
                   onOtherMoveJSrvCall={handleLeftArmMoveJSrvCall}
+                  plannedHasCollision={plannedHasCollision}
                 />
               </div>
             </>

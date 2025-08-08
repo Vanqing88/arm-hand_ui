@@ -298,18 +298,24 @@ const RobotSelfCollisionDetector = ({
         }
       }
 
-      // 更新碰撞状态
+      // 标准化碰撞条目（为缺失的severity补齐为'collision'）
+      const normalizedCollisions = allCollisions.map(c => ({
+        severity: 'collision',
+        ...c,
+      }));
+
+      // 更新碰撞状态（任意碰撞即为true）
       const newStatus = {
-        hasCollision: allCollisions.some(c => c.severity === 'collision'),
-        collisionCount: allCollisions.filter(c => c.severity === 'collision').length,
-        totalCollisions: allCollisions.length,
-        details: allCollisions
+        hasCollision: normalizedCollisions.length > 0,
+        collisionCount: normalizedCollisions.length,
+        totalCollisions: normalizedCollisions.length,
+        details: normalizedCollisions
       };
 
       setCollisionStatus(newStatus);
 
       // 更新可视化
-      updateSelfCollisionVisualization(allCollisions);
+      updateSelfCollisionVisualization(normalizedCollisions);
 
       // 回调通知外部组件
       if (onCollisionChange) {
